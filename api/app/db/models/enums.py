@@ -1,0 +1,92 @@
+from enum import Enum
+
+
+class UserRole(str, Enum):
+    ADMIN = "ADMIN"
+    RESPONDER = "RESPONDER"
+    CITIZEN = "CITIZEN"
+
+
+class DisasterType(str, Enum):
+    FLOOD = "FLOOD"
+    EARTHQUAKE = "EARTHQUAKE"
+    CYCLONE = "CYCLONE"
+    LANDSLIDE = "LANDSLIDE"
+    WILDFIRE = "WILDFIRE"
+    OTHER = "OTHER"
+
+
+class SeverityLevel(str, Enum):
+    LOW = "LOW"
+    MODERATE = "MODERATE"
+    HIGH = "HIGH"
+    SEVERE = "SEVERE"
+
+
+class EventStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    MONITORING = "MONITORING"
+    CLOSED = "CLOSED"
+
+
+class FacilityType(str, Enum):
+    HOSPITAL = "HOSPITAL"
+    SHELTER = "SHELTER"
+
+
+class ReportSource(str, Enum):
+    CITIZEN = "CITIZEN"
+    RESPONDER = "RESPONDER"
+    SENSOR = "SENSOR"
+    SEED = "SEED"
+
+
+class RunStatus(str, Enum):
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    PARTIAL = "PARTIAL"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class AgentName(str, Enum):
+    DISASTER_ASSESSMENT = "DISASTER_ASSESSMENT"
+    RESCUE_PLANNING = "RESCUE_PLANNING"
+    EVACUATION = "EVACUATION"
+    HOSPITAL_RECOMMENDATION = "HOSPITAL_RECOMMENDATION"
+    SHELTER_ALLOCATION = "SHELTER_ALLOCATION"
+    RESOURCE_COORDINATION = "RESOURCE_COORDINATION"
+    CITIZEN_ASSISTANCE = "CITIZEN_ASSISTANCE"
+    SYNTHESIS = "SYNTHESIS"
+
+
+class AgentStatus(str, Enum):
+    SKIPPED = "SKIPPED"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    TIMEOUT = "TIMEOUT"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
+
+
+class VerificationStatus(str, Enum):
+    PENDING = "PENDING"
+    VERIFIED = "VERIFIED"
+    OVERRIDDEN = "OVERRIDDEN"
+    REJECTED = "REJECTED"
+
+
+class Provenance(str, Enum):
+    REAL = "REAL"
+    SIMULATED = "SIMULATED"
+    SYNTHETIC = "SYNTHETIC"
+
+
+class ResourceKind(str, Enum):
+    MEDICAL_TEAM = "MEDICAL_TEAM"
+    RESCUE_BOAT = "RESCUE_BOAT"
+    AMBULANCE = "AMBULANCE"
+    FOOD_KIT = "FOOD_KIT"
+    WATER_TANKER = "WATER_TANKER"
+    BLANKET_KIT = "BLANKET_KIT"
+    GENERATOR = "GENERATOR"
+    RESCUE_TEAM = "RESCUE_TEAM"

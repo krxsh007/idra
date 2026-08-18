@@ -1,0 +1,60 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "B008", # do not perform function calls in argument defaults (needed for FastAPI Depends)
+    "BLE001",
+    "UP042", # inherit from str, Enum for SQLAlchemy compatibility
+]
+
+[tool.mypy]
+mypy_path = ["api", "."]
+explicit_package_bases = true
+namespace_packages = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = [
+    "geoalchemy2",
+    "geoalchemy2.*",
+    "pgvector",
+    "pgvector.*",
+    "pgvector.sqlalchemy",
+    "networkx",
+    "networkx.*",
+    "shapely",
+    "shapely.*",
+    "sentence_transformers",
+    "sentence_transformers.*",
+    "langchain_text_splitters",
+    "langchain_text_splitters.*",
+    "google.genai",
+    "google.genai.*",
+    "langgraph",
+    "langgraph.*",
+    "langchain_core",
+    "langchain_core.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+python_files = ["test_*.py"]

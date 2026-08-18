@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-checks:
+    runs-on: ubuntu-latest
+    env:
+      APP_ENV: test
+      LLM_BACKEND: fake
+      JWT_SECRET: test_jwt_secret_must_be_32_bytes_long_idra_ci
+      DATABASE_URL: postgresql+asyncpg://idra:idra@localhost:5432/idra
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: idra
+          POSTGRES_USER: idra
+          POSTGRES_PASSWORD: idra
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r api/requirements.txt
+          pip install -r api/requirements-dev.txt
+
+      - name: Run Ruff Lint
+        run: ruff check api/ scripts/ tests/
+
+      - name: Run Ruff Format Check
+        run: ruff format --check api/ scripts/ tests/
+
+      - name: Run MyPy Type Check
+        run: PYTHONPATH=api:. mypy api/app scripts/
+
+      - name: Run Pytest
+        run: PYTHONPATH=api:. pytest tests/ -v
