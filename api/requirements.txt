@@ -1,0 +1,32 @@
+# Web Framework & Validation
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+
+# Database & ORM
+sqlalchemy==2.0.36
+asyncpg==0.30.0
+geoalchemy2==0.17.0
+pgvector==0.3.6
+alembic==1.14.0
+
+# Logging & Utilities
+structlog==24.4.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+httpx==0.28.1
+
+# Spatial & Graph
+networkx==3.4.2
+shapely==2.0.6
+
+# RAG & ML (Local Embeddings)
+sentence-transformers==3.3.1
+langchain-text-splitters==0.3.4
+pypdf==5.1.0
+
+# LLM Providers & Orchestration
+google-genai>=0.2.0
+langgraph==0.2.60
+langchain-core==0.3.29

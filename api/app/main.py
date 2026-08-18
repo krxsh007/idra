@@ -1,0 +1,99 @@
+import time
+import uuid
+from collections.abc import AsyncGenerator, Awaitable, Callable
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.core.config import settings
+from app.core.errors import (
+    AppException,
+    app_exception_handler,
+    generic_exception_handler,
+    validation_exception_handler,
+)
+from app.core.logging import logger, request_id_ctx, setup_logging
+from app.routers.health import router as health_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    setup_logging(settings.LOG_LEVEL)
+    logger.info(
+        "idra_startup",
+        app_env=settings.APP_ENV,
+        llm_backend=settings.LLM_BACKEND,
+        study_area_bbox=settings.STUDY_AREA_BBOX,
+    )
+    yield
+    logger.info("idra_shutdown")
+
+
+app = FastAPI(
+    title="Intelligent Disaster Response Agents (IDRA)",
+    description=(
+        "Multi-agent emergency decision support platform "
+        "grounded in RAG and PostGIS spatial intelligence."
+    ),
+    version="0.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    lifespan=lifespan,
+)
+
+# Exception handlers
+app.add_exception_handler(AppException, app_exception_handler)  # type: ignore[arg-type]
+app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
+app.add_exception_handler(Exception, generic_exception_handler)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
+)
+
+
+@app.middleware("http")
+async def request_context_middleware(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    token = request_id_ctx.set(req_id)
+    start_time = time.perf_counter()
+
+    try:
+        response = await call_next(request)
+        process_time_ms = int((time.perf_counter() - start_time) * 1000)
+        response.headers["X-Request-ID"] = req_id
+        logger.info(
+            "http_request",
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration_ms=process_time_ms,
+        )
+        return response
+    except Exception as exc:
+        process_time_ms = int((time.perf_counter() - start_time) * 1000)
+        logger.error(
+            "http_request_failed",
+            method=request.method,
+            path=request.url.path,
+            duration_ms=process_time_ms,
+            error=str(exc),
+        )
+        raise
+    finally:
+        request_id_ctx.reset(token)
+
+
+# Mount health endpoints at both root and /api/v1 prefix
+app.include_router(health_router, prefix="")
+app.include_router(health_router, prefix="/api/v1")
