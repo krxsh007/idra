@@ -1,126 +1,165 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldAlert, Activity, CheckCircle2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { Header } from './components/layout/Header';
+import { MapContainer } from './components/map/MapContainer';
+import { LayerControls } from './components/map/LayerControls';
+import { EventDetailPanel } from './components/events/EventDetailPanel';
+import { LoginModal } from './components/auth/LoginModal';
+import { EventCreateModal } from './components/events/EventCreateModal';
+import { HazardZoneCreateModal } from './components/hazards/HazardZoneCreateModal';
+import { ReportSubmissionModal } from './components/reports/ReportSubmissionModal';
+import { useAuthStore } from './stores/authStore';
+import { useEventStore } from './stores/eventStore';
+import { api } from './lib/api';
+import { EpicenterPoint } from './types/api';
 
-interface HealthStatus {
-  status: string;
-  version: string;
-  environment: string;
-}
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      staleTime: 5000,
+    },
+  },
+});
 
-export const App: React.FC = () => {
-  const [health, setHealth] = useState<HealthStatus | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+const Dashboard: React.FC = () => {
+  const { checkAuth } = useAuthStore();
+  const { selectedEvent, setActiveEvent } = useEventStore();
+
+  // Modals state
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isNewEventOpen, setIsNewEventOpen] = useState(false);
+  const [isNewHazardOpen, setIsNewHazardOpen] = useState(false);
+  const [isSubmitReportOpen, setIsSubmitReportOpen] = useState(false);
+
+  // Map location picker state
+  const [isPickingLocation, setIsPickingLocation] = useState(false);
+  const [onPickCallback, setOnPickCallback] = useState<((coords: EpicenterPoint) => void) | null>(null);
 
   useEffect(() => {
-    fetch('/api/v1/health')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        setHealth(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
-  }, []);
+    checkAuth();
+  }, [checkAuth]);
+
+  // Fetch all events
+  const { data: eventsData, refetch: refetchEvents } = useQuery({
+    queryKey: ['events'],
+    queryFn: () => api.getEvents(),
+  });
+
+  // Automatically select first event if none selected
+  useEffect(() => {
+    if (!selectedEvent && eventsData?.items && eventsData.items.length > 0) {
+      setActiveEvent(eventsData.items[0]);
+    }
+  }, [selectedEvent, eventsData, setActiveEvent]);
+
+  // Fetch hazard zones for selected event
+  const { data: hazardZonesData, refetch: refetchHazards } = useQuery({
+    queryKey: ['hazardZones', selectedEvent?.id],
+    queryFn: () => (selectedEvent ? api.getEventHazardZones(selectedEvent.id) : { items: [], total: 0 }),
+    enabled: !!selectedEvent?.id,
+  });
+
+  // Fetch reports for selected event
+  const { data: reportsData, refetch: refetchReports } = useQuery({
+    queryKey: ['reports', selectedEvent?.id],
+    queryFn: () => (selectedEvent ? api.getEventReports(selectedEvent.id) : { items: [], total: 0, limit: 20, offset: 0 }),
+    enabled: !!selectedEvent?.id,
+  });
+
+  const handleStartLocationPick = (callback: (coords: EpicenterPoint) => void) => {
+    setOnPickCallback(() => callback);
+    setIsPickingLocation(true);
+  };
+
+  const handleMapClick = (coords: { lon: number; lat: number }) => {
+    if (isPickingLocation && onPickCallback) {
+      onPickCallback(coords);
+      setIsPickingLocation(false);
+      setOnPickCallback(null);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex flex-col justify-between p-6 max-w-5xl mx-auto">
-      <header className="border-b border-slate-800 pb-4 mb-8 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-blue-600/20 text-blue-400 rounded-lg border border-blue-500/30">
-            <ShieldAlert className="w-7 h-7" />
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 text-slate-100">
+      {/* Top Header */}
+      <Header
+        events={eventsData?.items || []}
+        activeEvent={selectedEvent}
+        onSelectEvent={setActiveEvent}
+        onOpenLogin={() => setIsLoginOpen(true)}
+        onOpenNewEvent={() => setIsNewEventOpen(true)}
+        onOpenSubmitReport={() => setIsSubmitReportOpen(true)}
+      />
+
+      {/* Main Map + Sidebar Workspace */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Geospatial Map Area */}
+        <main className="flex-1 relative h-full">
+          <MapContainer
+            activeEvent={selectedEvent}
+            hazardZones={hazardZonesData?.items || []}
+            reports={reportsData?.items || []}
+            onMapClick={handleMapClick}
+            isPickingLocation={isPickingLocation}
+          />
+
+          {/* Floating Layer Controls */}
+          <div className="absolute bottom-6 left-6 z-10">
+            <LayerControls />
           </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">IDRA</h1>
-            <p className="text-xs text-slate-400">Intelligent Disaster Response Agents</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-900/40 text-emerald-300 border border-emerald-500/30">
-            Milestone M2: API Core & Events
-          </span>
-        </div>
-      </header>
+        </main>
 
-      <main className="space-y-6 flex-1">
-        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-blue-400" /> System Status
-          </h2>
-          <p className="text-sm text-slate-300 mb-6">
-            Foundation infrastructure, database schema, and event domain API status.
-          </p>
+        {/* Right Collapsible Event Detail Sidebar */}
+        <aside className="h-full z-10 shadow-2xl">
+          <EventDetailPanel
+            event={selectedEvent}
+            hazardZones={hazardZonesData?.items || []}
+            reports={reportsData?.items || []}
+            onAddHazardZone={() => setIsNewHazardOpen(true)}
+            onOpenReportModal={() => setIsSubmitReportOpen(true)}
+          />
+        </aside>
+      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-slate-900/80 rounded-lg border border-slate-700/40">
-              <div className="text-xs font-medium text-slate-400">API Health</div>
-              <div className="mt-2 flex items-center space-x-2">
-                {loading ? (
-                  <span className="text-xs text-slate-500">Checking...</span>
-                ) : error ? (
-                  <>
-                    <AlertTriangle className="w-4 h-4 text-rose-400" />
-                    <span className="text-sm font-semibold text-rose-300">Disconnected</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span className="text-sm font-semibold text-emerald-300">
-                      {health?.status.toUpperCase()}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
+      {/* Modals */}
+      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
 
-            <div className="p-4 bg-slate-900/80 rounded-lg border border-slate-700/40">
-              <div className="text-xs font-medium text-slate-400">Environment</div>
-              <div className="mt-2 text-sm font-semibold text-slate-200">
-                {health?.environment || 'development'}
-              </div>
-            </div>
+      <EventCreateModal
+        isOpen={isNewEventOpen}
+        onClose={() => setIsNewEventOpen(false)}
+        onSuccess={() => refetchEvents()}
+        onStartLocationPick={handleStartLocationPick}
+      />
 
-            <div className="p-4 bg-slate-900/80 rounded-lg border border-slate-700/40">
-              <div className="text-xs font-medium text-slate-400">Study Area</div>
-              <div className="mt-2 text-sm font-semibold text-slate-200">
-                Chennai Core (BBox)
-              </div>
-            </div>
-          </div>
-        </div>
+      {selectedEvent && (
+        <HazardZoneCreateModal
+          isOpen={isNewHazardOpen}
+          eventId={selectedEvent.id}
+          onClose={() => setIsNewHazardOpen(false)}
+          onSuccess={() => refetchHazards()}
+        />
+      )}
 
-        <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-6">
-          <h3 className="text-sm font-medium text-slate-200 mb-3">Quick Navigation</h3>
-          <div className="flex flex-wrap gap-3 text-sm">
-            <a
-              href="/docs"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/60 hover:bg-slate-700 text-slate-200 rounded-md border border-slate-600/50 transition-colors"
-            >
-              API Swagger Docs <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-            </a>
-            <a
-              href="/api/v1/health/deep"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/60 hover:bg-slate-700 text-slate-200 rounded-md border border-slate-600/50 transition-colors"
-            >
-              Deep Health Diagnostic <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
-            </a>
-          </div>
-        </div>
-      </main>
-
-      <footer className="mt-12 pt-4 border-t border-slate-800 text-xs text-slate-500 text-center">
-        IDRA Decision Support Platform &bull; B.Tech Project-I BITE497J
-      </footer>
+      <ReportSubmissionModal
+        isOpen={isSubmitReportOpen}
+        eventId={selectedEvent?.id}
+        onClose={() => setIsSubmitReportOpen(false)}
+        onSuccess={() => {
+          refetchReports();
+          refetchEvents();
+        }}
+        onStartLocationPick={handleStartLocationPick}
+      />
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Dashboard />
+    </QueryClientProvider>
   );
 };
 
