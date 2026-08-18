@@ -3,6 +3,10 @@ import uuid
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
+from fastapi import FastAPI, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.core.config import settings
 from app.core.errors import (
     AppException,
@@ -16,9 +20,6 @@ from app.routers.events import router as events_router
 from app.routers.hazards import router as hazards_router
 from app.routers.health import router as health_router
 from app.routers.reports import router as reports_router
-from fastapi import FastAPI, Request, Response
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
