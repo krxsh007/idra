@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import uuid
-from datetime import UTC, datetime, timedelta
-from typing import Sequence
+import hashlib
+from collections.abc import Sequence
+from datetime import UTC, datetime
+
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
-from app.db.models.enums import DisasterType
 from app.db.models.events import DisasterEvent, HazardZone, IncidentReport
 from app.db.models.knowledge import KBChunk, KBDocument
 from app.rag.chunking import chunk_parsed_document
@@ -22,7 +21,9 @@ def generate_sitrep_text(
 ) -> str:
     """Synthesize a structured situational report (SITREP) markdown document."""
     now_str = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
-    declared_str = event.declared_at.strftime("%Y-%m-%d %H:%M:%S UTC") if event.declared_at else "Unknown"
+    declared_str = (
+        event.declared_at.strftime("%Y-%m-%d %H:%M:%S UTC") if event.declared_at else "Unknown"
+    )
 
     total_casualties_reported = sum(1 for r in reports if r.casualties_reported)
     total_people_affected = sum(r.people_affected or 0 for r in reports)
@@ -46,22 +47,28 @@ def generate_sitrep_text(
 
     for z in hazard_zones:
         imp_tag = " [IMPASSABLE ROAD]" if z.is_impassable else ""
-        lines.append(f"  - **{z.label}** ({z.severity.value} {z.hazard_type.value}){imp_tag}: {z.source_note or 'No notes'}")
+        note = z.source_note or "No notes"
+        lines.append(
+            f"  - **{z.label}** ({z.severity.value} {z.hazard_type.value}){imp_tag}: {note}"
+        )
 
-    lines.extend([
-        "",
-        "## 3. Incident Reports & Casualties",
-        f"- Total reports received: {len(reports)}",
-        f"- Reports with casualties: {total_casualties_reported}",
-        f"- Estimated people affected: {total_people_affected}",
-        "",
-        "### Recent Observations:",
-    ])
+    lines.extend(
+        [
+            "",
+            "## 3. Incident Reports & Casualties",
+            f"- Total reports received: {len(reports)}",
+            f"- Reports with casualties: {total_casualties_reported}",
+            f"- Estimated people affected: {total_people_affected}",
+            "",
+            "### Recent Observations:",
+        ]
+    )
 
     for r in reports[:10]:
         cas_tag = " [CASUALTY REPORTED]" if r.casualties_reported else ""
         aff_tag = f" ({r.people_affected} affected)" if r.people_affected else ""
-        lines.append(f"- **{r.source.value}** ({r.reported_at.strftime('%H:%M')}): {r.body}{cas_tag}{aff_tag}")
+        time_str = r.reported_at.strftime("%H:%M")
+        lines.append(f"- **{r.source.value}** ({time_str}): {r.body}{cas_tag}{aff_tag}")
 
     return "\n".join(lines)
 
@@ -75,31 +82,31 @@ async def ingest_event_sitrep(
     """Generate and ingest a SITREP document with embeddings and 24h TTL."""
     sitrep_text = generate_sitrep_text(event, hazard_zones, reports)
     today = datetime.now(UTC).date()
-    ttl_hours = settings.SITREP_TTL_HOURS
-    valid_until = (datetime.now(UTC) + timedelta(hours=ttl_hours)).date()
+    content_hash = hashlib.sha256(sitrep_text.encode("utf-8")).hexdigest()
 
-    # 1. Deactivate old SITREPs for this event
+    # 1. Deactivate old SITREPs for this title prefix
+    title_prefix = f"SITREP - {event.name}"
     deact_stmt = (
         update(KBDocument)
         .where(
-            KBDocument.event_id == event.id,
-            KBDocument.doc_type == "SITREP",
+            KBDocument.title.like(f"{title_prefix}%"),
+            KBDocument.source_type == "SITREP",
         )
         .values(is_active=False)
     )
     await db.execute(deact_stmt)
 
     # 2. Insert new KBDocument
-    doc_title = f"SITREP - {event.name} - {datetime.now(UTC).strftime('%Y%m%d_%H%M')}"
+    doc_title = f"{title_prefix} - {datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
     doc = KBDocument(
-        event_id=event.id,
         title=doc_title,
-        doc_type="SITREP",
-        disaster_type=event.disaster_type,
+        source_type="SITREP",
         source_url=None,
-        author="IDRA Automated Synthesizer",
-        publication_date=today,
-        valid_until=valid_until,
+        publisher="IDRA Automated Synthesizer",
+        hazard_types=[event.disaster_type],
+        jurisdiction="Chennai",
+        published_at=today,
+        content_sha256=content_hash,
         is_active=True,
     )
     db.add(doc)
@@ -127,10 +134,9 @@ async def ingest_event_sitrep(
         kb_chunk = KBChunk(
             document_id=doc.id,
             chunk_index=chunk.chunk_index,
-            text=chunk.text,
+            section_path=chunk.heading_path,
+            content=chunk.text,
             token_count=chunk.token_count,
-            page_number=chunk.page_number,
-            heading_path=chunk.heading_path,
             embedding=emb,
         )
         db.add(kb_chunk)

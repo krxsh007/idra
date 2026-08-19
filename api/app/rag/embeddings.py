@@ -3,12 +3,13 @@ from __future__ import annotations
 import hashlib
 import math
 from typing import Any
+
 from app.core.config import settings
 from app.core.logging import logger
 
 
 class EmbeddingService:
-    _instance: EmbeddingService | null = None
+    _instance: EmbeddingService | None = None
     _model: Any = None
 
     def __init__(self) -> None:
@@ -24,7 +25,9 @@ class EmbeddingService:
     def _load_model(self) -> Any:
         if self._model is None and settings.LLM_BACKEND != "fake":
             try:
-                from sentence_transformers import SentenceTransformer  # type: ignore[import-untyped]
+                from sentence_transformers import (
+                    SentenceTransformer,  # type: ignore[import-untyped]
+                )
 
                 logger.info("loading_embedding_model", model=self._model_name)
                 self._model = SentenceTransformer(self._model_name)
@@ -70,7 +73,9 @@ class EmbeddingService:
         model = self._load_model()
 
         if model is not None:
-            embeddings = model.encode(clean_texts, normalize_embeddings=True, show_progress_bar=False)
+            embeddings = model.encode(
+                clean_texts, normalize_embeddings=True, show_progress_bar=False
+            )
             return [[float(x) for x in emb.tolist()] for emb in embeddings]
 
         return [self._generate_deterministic_mock_vector(t) for t in clean_texts]

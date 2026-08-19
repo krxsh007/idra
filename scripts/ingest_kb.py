@@ -1,9 +1,7 @@
 import asyncio
+import hashlib
 import os
 from datetime import UTC, datetime
-from typing import Any
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.config import settings
 from app.core.logging import logger, setup_logging
@@ -12,14 +10,17 @@ from app.db.models.knowledge import KBChunk, KBDocument
 from app.rag.chunking import chunk_parsed_document
 from app.rag.embeddings import embedding_service
 from app.rag.parser import parse_markdown_file, parse_pdf_file
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 
 async def ingest_file(
     db: AsyncSession,
     file_path: str,
-    doc_type: str = "SOP",
-    disaster_type: DisasterType | None = DisasterType.FLOOD,
-    author: str = "NDMA / TNSDMA / Sphere",
+    source_type: str = "SOP",
+    hazard_types: list[DisasterType] | None = None,
+    publisher: str = "NDMA / TNSDMA / Sphere",
+    jurisdiction: str = "National / Tamil Nadu",
 ) -> int:
     """Parse, chunk, embed, and store a single document file into the database."""
     filename = os.path.basename(file_path)
@@ -33,8 +34,16 @@ async def ingest_file(
         logger.warning("unsupported_file_format", filename=filename)
         return 0
 
-    # 1. Check if document already exists
-    stmt = select(KBDocument).where(KBDocument.title == parsed.title)
+    with open(file_path, "rb") as f:
+        file_bytes = f.read()
+    content_sha256 = hashlib.sha256(file_bytes).hexdigest()
+
+    h_types = hazard_types or []
+
+    # 1. Check if document already exists by content hash or title
+    stmt = select(KBDocument).where(
+        (KBDocument.content_sha256 == content_sha256) | (KBDocument.title == parsed.title)
+    )
     res = await db.execute(stmt)
     existing_doc = res.scalar_one_or_none()
 
@@ -42,19 +51,22 @@ async def ingest_file(
         doc = existing_doc
         # Delete existing chunks for re-ingestion
         await db.execute(delete(KBChunk).where(KBChunk.document_id == doc.id))
-        doc.doc_type = doc_type
-        doc.disaster_type = disaster_type
-        doc.author = author
+        doc.source_type = source_type
+        doc.publisher = publisher
+        doc.hazard_types = h_types
+        doc.jurisdiction = jurisdiction
+        doc.content_sha256 = content_sha256
         doc.is_active = True
     else:
         doc = KBDocument(
             title=parsed.title,
-            doc_type=doc_type,
-            disaster_type=disaster_type,
+            source_type=source_type,
             source_url=None,
-            author=author,
-            publication_date=datetime.now(UTC).date(),
-            valid_until=None,
+            publisher=publisher,
+            hazard_types=h_types,
+            jurisdiction=jurisdiction,
+            published_at=datetime.now(UTC).date(),
+            content_sha256=content_sha256,
             is_active=True,
         )
         db.add(doc)
@@ -64,8 +76,8 @@ async def ingest_file(
     chunks = chunk_parsed_document(
         doc=parsed,
         doc_id=str(doc.id),
-        doc_type=doc_type,
-        disaster_type=disaster_type.value if disaster_type else None,
+        doc_type=source_type,
+        disaster_type=h_types[0].value if h_types else None,
         max_tokens=400,
         overlap_tokens=80,
     )
@@ -83,10 +95,9 @@ async def ingest_file(
         kb_chunk = KBChunk(
             document_id=doc.id,
             chunk_index=chunk.chunk_index,
-            text=chunk.text,
+            section_path=chunk.heading_path,
+            content=chunk.text,
             token_count=chunk.token_count,
-            page_number=chunk.page_number,
-            heading_path=chunk.heading_path,
             embedding=emb,
         )
         db.add(kb_chunk)
@@ -115,18 +126,22 @@ async def main() -> None:
     async with session_maker() as session:
         for fname in sorted(files):
             fpath = os.path.join(data_dir, fname)
-            disaster_type = DisasterType.FLOOD
+            hazard_types: list[DisasterType] = [DisasterType.FLOOD]
             if "cyclone" in fname.lower():
-                disaster_type = DisasterType.CYCLONE
+                hazard_types = [DisasterType.CYCLONE, DisasterType.FLOOD]
             elif "sphere" in fname.lower():
-                disaster_type = None
+                hazard_types = [
+                    DisasterType.FLOOD,
+                    DisasterType.CYCLONE,
+                    DisasterType.EARTHQUAKE,
+                ]
 
             try:
                 chunks_count = await ingest_file(
                     db=session,
                     file_path=fpath,
-                    doc_type="SOP" if not "sphere" in fname.lower() else "STANDARD",
-                    disaster_type=disaster_type,
+                    source_type="SOP" if "sphere" not in fname.lower() else "STANDARD",
+                    hazard_types=hazard_types,
                 )
                 total_chunks += chunks_count
             except Exception as e:
