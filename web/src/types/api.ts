@@ -12,6 +12,8 @@ export type SeverityLevel = 'LOW' | 'MODERATE' | 'HIGH' | 'SEVERE';
 
 export type EventStatus = 'ACTIVE' | 'MONITORING' | 'CLOSED';
 
+export type FacilityType = 'HOSPITAL' | 'SHELTER';
+
 export type ReportSource = 'CITIZEN' | 'RESPONDER' | 'SENSOR' | 'SEED';
 
 export type Provenance = 'REAL' | 'SIMULATED' | 'SYNTHETIC';
@@ -19,6 +21,23 @@ export type Provenance = 'REAL' | 'SIMULATED' | 'SYNTHETIC';
 export interface EpicenterPoint {
   lon: number;
   lat: number;
+}
+
+export interface Facility {
+  id: string;
+  name: string;
+  facility_type: FacilityType;
+  location: EpicenterPoint;
+  total_capacity: number;
+  current_occupancy: number;
+  is_operational: boolean;
+  phone?: string | null;
+  address?: string | null;
+}
+
+export interface FacilityListResponse {
+  items: Facility[];
+  total: number;
 }
 
 export interface DisasterEvent {

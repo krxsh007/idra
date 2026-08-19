@@ -1,12 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import maplibregl, { Map as MapLibreMap, Marker, Popup } from 'maplibre-gl';
-import { DisasterEvent, HazardZone, IncidentReport } from '../../types/api';
+import { DisasterEvent, Facility, HazardZone, IncidentReport } from '../../types/api';
 import { useMapStore } from '../../stores/mapStore';
 
 interface MapContainerProps {
   activeEvent: DisasterEvent | null;
   hazardZones?: HazardZone[];
   reports?: IncidentReport[];
+  facilities?: Facility[];
   onMapClick?: (coords: { lon: number; lat: number }) => void;
   isPickingLocation?: boolean;
 }
@@ -32,6 +33,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   activeEvent,
   hazardZones = [],
   reports = [],
+  facilities = [],
   onMapClick,
   isPickingLocation = false,
 }) => {
@@ -39,8 +41,9 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const mapRef = useRef<MapLibreMap | null>(null);
   const epicenterMarkerRef = useRef<Marker | null>(null);
   const reportMarkersRef = useRef<Marker[]>([]);
+  const facilityMarkersRef = useRef<Marker[]>([]);
 
-  const { center, zoom, showBBox, showHazards, showReports } = useMapStore();
+  const { center, zoom, showBBox, showHazards, showReports, showFacilities } = useMapStore();
 
   // Initialize Map
   useEffect(() => {
@@ -313,6 +316,43 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       });
     }
   }, [reports, showReports]);
+
+  // Update Facility Markers (Hospitals: Blue, Shelters: Green)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    facilityMarkersRef.current.forEach((m) => m.remove());
+    facilityMarkersRef.current = [];
+
+    if (showFacilities && facilities.length > 0) {
+      facilities.forEach((fac) => {
+        const isHospital = fac.facility_type === 'HOSPITAL';
+        const el = document.createElement('div');
+        el.className =
+          'w-6 h-6 rounded-full border-2 border-white shadow-lg flex items-center justify-center cursor-pointer font-bold text-[10px] text-white';
+        el.style.backgroundColor = isHospital ? '#2563eb' : '#16a34a';
+        el.innerText = isHospital ? 'H' : 'S';
+
+        const freeCapacity = fac.total_capacity - fac.current_occupancy;
+        const popup = new Popup({ offset: 15 }).setHTML(
+          `<div class="p-2 text-xs font-sans max-w-xs">
+            <div class="font-bold text-slate-900">${fac.name}</div>
+            <div class="text-slate-600 font-semibold">${fac.facility_type}</div>
+            <div class="mt-1 text-slate-700">Capacity: ${fac.current_occupancy} / ${fac.total_capacity} (${freeCapacity} free)</div>
+            ${fac.phone ? `<div class="text-slate-500 mt-0.5">📞 ${fac.phone}</div>` : ''}
+          </div>`
+        );
+
+        const marker = new Marker({ element: el })
+          .setLngLat([fac.location.lon, fac.location.lat])
+          .setPopup(popup)
+          .addTo(map);
+
+        facilityMarkersRef.current.push(marker);
+      });
+    }
+  }, [facilities, showFacilities]);
 
   // Toggle Layer Visibilities
   useEffect(() => {

@@ -24,10 +24,10 @@ migrate:
 	cd api && alembic upgrade head
 
 seed:
-	PYTHONPATH=api:. python3 scripts/seed_users.py
+	PYTHONPATH=api:. .venv/bin/python scripts/seed_users.py
 
 types:
-	@echo "Types generator will be configured in M3"
+	PYTHONPATH=api:. .venv/bin/python scripts/export_openapi.py
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
