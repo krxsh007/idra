@@ -90,9 +90,9 @@ async def get_facility(
 
     if not fac:
         raise AppException(
-            error_code=ErrorCode.NOT_FOUND,
-            message=f"Facility with id {id} was not found",
             status_code=404,
+            code=ErrorCode.NOT_FOUND,
+            message=f"Facility with id {id} was not found",
         )
 
     return facility_to_response(fac)

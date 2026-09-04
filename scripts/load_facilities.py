@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 from app.core.config import settings
 from app.core.logging import logger, setup_logging
@@ -11,7 +12,7 @@ from shapely.geometry import Point
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-FACILITIES_SEED = [
+FACILITIES_SEED: list[dict[str, Any]] = [
     # Hospitals
     {
         "external_ref": "HOSP-001",

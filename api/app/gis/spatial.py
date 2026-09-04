@@ -4,6 +4,7 @@ import math
 import uuid
 from dataclasses import dataclass
 
+from geoalchemy2 import Geography
 from geoalchemy2.functions import (
     ST_Area,
     ST_Distance,
@@ -22,7 +23,7 @@ from app.db.models.events import DisasterEvent, HazardZone, IncidentReport
 from app.db.models.facilities import Facility
 from app.db.models.roads import RoadEdge, RoadNode
 from app.gis.graph import road_graph_manager
-from app.gis.validation import validate_point_in_bbox
+from app.gis.validation import validate_point_in_study_area
 
 MAX_SNAP_DISTANCE_M = 500.0
 
@@ -53,7 +54,7 @@ def snap_point_to_graph_memory(
     lon: float, lat: float, max_dist_m: float = MAX_SNAP_DISTANCE_M
 ) -> int:
     """Snap coordinate to nearest road node in loaded in-memory NetworkX graph."""
-    validate_point_in_bbox(lon, lat)
+    validate_point_in_study_area(lon, lat)
     G = road_graph_manager.get_graph()
 
     closest_node = None
@@ -69,12 +70,12 @@ def snap_point_to_graph_memory(
 
     if closest_node is None or min_dist > max_dist_m:
         raise AppException(
-            error_code=ErrorCode.VALIDATION_ERROR,
+            status_code=422,
+            code=ErrorCode.VALIDATION_ERROR,
             message=(
                 f"Point ({lon}, {lat}) is {min_dist:.1f}m from nearest road, "
                 f"exceeding {max_dist_m}m limit"
             ),
-            status_code=422,
             details={"distance_m": min_dist, "limit_m": max_dist_m},
         )
 
@@ -88,13 +89,13 @@ async def snap_to_nearest_node(
     max_dist_m: float = MAX_SNAP_DISTANCE_M,
 ) -> int:
     """Snap a point to the nearest road network node using PostGIS KNN (<->) on GiST index."""
-    validate_point_in_bbox(lon, lat)
+    validate_point_in_study_area(lon, lat)
 
     try:
         point_geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
         dist_expr = ST_Distance(
-            cast(RoadNode.geom, func.geography),
-            cast(point_geom, func.geography),
+            cast(RoadNode.geom, Geography),
+            cast(point_geom, Geography),
         )
 
         # KNN nearest node query
@@ -110,12 +111,12 @@ async def snap_to_nearest_node(
             node_id, distance_m = row
             if distance_m > max_dist_m:
                 raise AppException(
-                    error_code=ErrorCode.VALIDATION_ERROR,
+                    status_code=422,
+                    code=ErrorCode.VALIDATION_ERROR,
                     message=(
                         f"Point ({lon}, {lat}) is {distance_m:.1f}m from nearest road, "
                         f"exceeding {max_dist_m}m limit"
                     ),
-                    status_code=422,
                     details={"distance_m": distance_m, "limit_m": max_dist_m},
                 )
             return int(node_id)
@@ -140,14 +141,14 @@ async def get_nearby_facilities(
     """Retrieve facilities within radius_m ordered by distance using ST_DWithin on geography."""
     point_geom = ST_SetSRID(ST_MakePoint(lon, lat), 4326)
     dist_expr = ST_Distance(
-        cast(Facility.location, func.geography),
-        cast(point_geom, func.geography),
+        cast(Facility.location, Geography),
+        cast(point_geom, Geography),
     )
 
     stmt = select(Facility, dist_expr.label("distance_m")).where(
         ST_DWithin(
-            cast(Facility.location, func.geography),
-            cast(point_geom, func.geography),
+            cast(Facility.location, Geography),
+            cast(point_geom, Geography),
             radius_m,
         )
     )
@@ -185,8 +186,8 @@ async def get_reports_in_event(
         select(IncidentReport)
         .where(
             ST_DWithin(
-                cast(IncidentReport.location, func.geography),
-                cast(event.epicenter, func.geography),
+                cast(IncidentReport.location, Geography),
+                cast(event.epicenter, Geography),
                 event.radius_m,
             )
         )
@@ -225,7 +226,7 @@ async def calculate_hazard_area_sqm(
     event_id: uuid.UUID,
 ) -> float:
     """Calculate the total unioned square meters of all active hazard zones for an event."""
-    stmt = select(ST_Area(cast(ST_Union(HazardZone.geom), func.geography))).where(
+    stmt = select(ST_Area(cast(ST_Union(HazardZone.geom), Geography))).where(
         HazardZone.event_id == event_id
     )
 

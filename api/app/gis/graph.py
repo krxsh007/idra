@@ -36,7 +36,7 @@ class RoadGraphManager:
 
                 # Validate bounding box
                 expected_bbox = [float(x.strip()) for x in settings.STUDY_AREA_BBOX.split(",")]
-                manifest_bbox = self._manifest.get("bbox", [])
+                manifest_bbox = self._manifest.get("bbox", []) if self._manifest else []
                 if len(manifest_bbox) == 4 and len(expected_bbox) == 4:
                     pairs = zip(manifest_bbox, expected_bbox, strict=False)
                     mismatch = any(abs(m - e) > 0.01 for m, e in pairs)

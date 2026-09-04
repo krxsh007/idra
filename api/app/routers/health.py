@@ -46,6 +46,12 @@ async def deep_health_check() -> DeepHealthResponse:
 
     from app.gis.graph import road_graph_manager
 
+    if not road_graph_manager.is_loaded:
+        try:
+            road_graph_manager.load_graph()
+        except Exception:
+            pass
+
     graph_loaded = road_graph_manager.is_loaded
     components["road_graph"] = ComponentStatus(
         status="ok" if graph_loaded or os.path.exists(settings.ROAD_GRAPH_PATH) else "unconfigured",

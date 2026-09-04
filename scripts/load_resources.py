@@ -9,14 +9,14 @@ from app.db.models.facilities import Facility, Resource
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-RESOURCES_TEMPLATE = [
+RESOURCES_TEMPLATE: list[tuple[ResourceKind, str, int, int]] = [
     (ResourceKind.AMBULANCE, "Emergency ALS Ambulance", 8, 6),
-    (ResourceKind.BOAT, "Inflatable Rescue Motorboat (Zodiac)", 4, 3),
-    (ResourceKind.FOOD_RATIONS, "Emergency 3-Day Meal Kits (1000 pack)", 20, 18),
-    (ResourceKind.WATER_PURIFICATION, "Mobile RO Water Purification Unit (500L/hr)", 6, 5),
+    (ResourceKind.RESCUE_BOAT, "Inflatable Rescue Motorboat (Zodiac)", 4, 3),
+    (ResourceKind.FOOD_KIT, "Emergency 3-Day Meal Kits (1000 pack)", 20, 18),
+    (ResourceKind.WATER_TANKER, "Mobile RO Water Tanker Unit (500L/hr)", 6, 5),
     (ResourceKind.GENERATOR, "150 kVA Industrial Diesel Generator", 3, 2),
-    (ResourceKind.MEDICAL_KIT, "Mass Casualty Trauma First Response Kit", 15, 12),
-    (ResourceKind.PERSONNEL_TEAM, "SDRF Urban Flood Search & Rescue Team (6-person)", 4, 3),
+    (ResourceKind.MEDICAL_TEAM, "Mass Casualty Trauma Medical Team", 15, 12),
+    (ResourceKind.RESCUE_TEAM, "SDRF Urban Flood Search & Rescue Team (6-person)", 4, 3),
 ]
 
 
@@ -36,17 +36,17 @@ async def seed_resources(db: AsyncSession) -> int:
     total_created = 0
     for fac in facilities:
         for kind, label, total, free in RESOURCES_TEMPLATE:
-            # Hospitals get more ambulances and medical kits; shelters get more food and water
+            # Hospitals get more ambulances and medical teams; shelters get more food and water
             if fac.facility_type == FacilityType.HOSPITAL and kind in (
                 ResourceKind.AMBULANCE,
-                ResourceKind.MEDICAL_KIT,
+                ResourceKind.MEDICAL_TEAM,
             ):
                 total_qty = total * 2
                 free_qty = free * 2
             elif fac.facility_type == FacilityType.SHELTER and kind in (
-                ResourceKind.FOOD_RATIONS,
-                ResourceKind.WATER_PURIFICATION,
-                ResourceKind.BOAT,
+                ResourceKind.FOOD_KIT,
+                ResourceKind.WATER_TANKER,
+                ResourceKind.RESCUE_BOAT,
             ):
                 total_qty = total * 2
                 free_qty = free * 2
