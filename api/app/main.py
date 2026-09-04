@@ -17,6 +17,7 @@ from app.core.errors import (
 from app.core.logging import logger, request_id_ctx, setup_logging
 from app.routers.auth import router as auth_router
 from app.routers.events import router as events_router
+from app.routers.facilities import router as facilities_router
 from app.routers.hazards import router as hazards_router
 from app.routers.health import router as health_router
 from app.routers.reports import router as reports_router
@@ -109,3 +110,4 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(events_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(hazards_router, prefix="/api/v1")
+app.include_router(facilities_router, prefix="/api/v1")

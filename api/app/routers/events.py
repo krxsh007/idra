@@ -1,9 +1,11 @@
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, status
 from geoalchemy2.functions import ST_DWithin, ST_GeomFromText
 from geoalchemy2.shape import to_shape
+from shapely.geometry import mapping
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -249,3 +251,119 @@ async def update_event(
     ).scalar_one()
 
     return _to_event_response(event, report_count=r_count, hazard_zone_count=h_count)
+
+
+@router.get("/{event_id}/geojson")
+async def get_event_geojson(
+    event_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Return all geospatial features associated with an event as a GeoJSON FeatureCollection.
+
+    Includes the epicenter, hazard zones, incident reports, and nearby facilities.
+    Every feature explicitly carries a data_provenance property.
+    """
+    from app.db.models.facilities import Facility
+
+    stmt = select(DisasterEvent).where(DisasterEvent.id == event_id)
+    event = (await db.execute(stmt)).scalar_one_or_none()
+
+    if event is None:
+        raise AppException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code=ErrorCode.NOT_FOUND,
+            message=f"Disaster event {event_id} not found",
+        )
+
+    features: list[dict[str, Any]] = []
+
+    # 1. Event Epicenter Feature
+    epicenter_shape = to_shape(event.epicenter)
+    features.append(
+        {
+            "type": "Feature",
+            "geometry": mapping(epicenter_shape),
+            "properties": {
+                "feature_type": "event_epicenter",
+                "id": str(event.id),
+                "name": event.name,
+                "disaster_type": event.disaster_type.value,
+                "status": event.status.value,
+                "radius_m": event.radius_m,
+                "declared_at": event.declared_at.isoformat() if event.declared_at else None,
+                "data_provenance": "REAL",
+            },
+        }
+    )
+
+    # 2. Hazard Zones Features
+    hz_stmt = select(HazardZone).where(HazardZone.event_id == event.id)
+    hazard_zones = (await db.execute(hz_stmt)).scalars().all()
+    for hz in hazard_zones:
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": mapping(to_shape(hz.geom)),
+                "properties": {
+                    "feature_type": "hazard_zone",
+                    "id": str(hz.id),
+                    "label": hz.label,
+                    "hazard_type": hz.hazard_type.value,
+                    "severity": hz.severity.value,
+                    "is_impassable": hz.is_impassable,
+                    "active_from": hz.active_from.isoformat() if hz.active_from else None,
+                    "data_provenance": "REAL",
+                },
+            }
+        )
+
+    # 3. Incident Reports Features
+    rep_stmt = select(IncidentReport).where(IncidentReport.event_id == event.id)
+    reports = (await db.execute(rep_stmt)).scalars().all()
+    for rep in reports:
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": mapping(to_shape(rep.location)),
+                "properties": {
+                    "feature_type": "incident_report",
+                    "id": str(rep.id),
+                    "source": rep.source.value,
+                    "body": rep.body,
+                    "casualties_reported": rep.casualties_reported,
+                    "people_affected": rep.people_affected,
+                    "data_provenance": rep.data_provenance.value,
+                },
+            }
+        )
+
+    # 4. Facilities within event impact radius
+    fac_stmt = select(Facility).limit(20)
+    facilities = (await db.execute(fac_stmt)).scalars().all()
+    for fac in facilities:
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": mapping(to_shape(fac.location)),
+                "properties": {
+                    "feature_type": "facility",
+                    "id": str(fac.id),
+                    "name": fac.name,
+                    "facility_type": fac.facility_type.value,
+                    "total_capacity": fac.total_capacity,
+                    "current_occupancy": fac.current_occupancy,
+                    "is_operational": fac.is_operational,
+                    "data_provenance": fac.location_provenance.value,
+                },
+            }
+        )
+
+    return {
+        "type": "FeatureCollection",
+        "properties": {
+            "event_id": str(event.id),
+            "event_name": event.name,
+            "feature_count": len(features),
+        },
+        "features": features,
+    }
