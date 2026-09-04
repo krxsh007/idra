@@ -44,10 +44,18 @@ async def deep_health_check() -> DeepHealthResponse:
         details={"url_configured": bool(settings.DATABASE_URL)},
     )
 
-    graph_exists = os.path.exists(settings.ROAD_GRAPH_PATH)
+    from app.gis.graph import road_graph_manager
+
+    graph_loaded = road_graph_manager.is_loaded
     components["road_graph"] = ComponentStatus(
-        status="ok" if graph_exists else "unconfigured",
-        details={"path": settings.ROAD_GRAPH_PATH, "file_exists": graph_exists},
+        status="ok" if graph_loaded or os.path.exists(settings.ROAD_GRAPH_PATH) else "unconfigured",
+        details={
+            "path": settings.ROAD_GRAPH_PATH,
+            "loaded": graph_loaded,
+            "nodes": road_graph_manager.node_count,
+            "edges": road_graph_manager.edge_count,
+            "manifest_bbox": road_graph_manager.manifest.get("bbox", []),
+        },
     )
 
     llm_model = settings.GEMINI_MODEL if settings.LLM_BACKEND == "gemini" else settings.OLLAMA_MODEL

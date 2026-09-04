@@ -31,6 +31,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         llm_backend=settings.LLM_BACKEND,
         study_area_bbox=settings.STUDY_AREA_BBOX,
     )
+    # Load road graph and validate manifest
+    from app.gis.graph import road_graph_manager
+
+    road_graph_manager.load_graph()
     yield
     logger.info("idra_shutdown")
 
