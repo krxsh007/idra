@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from typing import BinaryIO
+
 from app.core.logging import logger
 
 
@@ -39,7 +40,9 @@ def parse_markdown_file(file_path: str) -> ParsedDocument:
     )
 
 
-def parse_pdf_file(file_path_or_stream: str | BinaryIO, filename: str = "document.pdf") -> ParsedDocument:
+def parse_pdf_file(
+    file_path_or_stream: str | BinaryIO, filename: str = "document.pdf"
+) -> ParsedDocument:
     """Parse a PDF file into pages using pypdf."""
     try:
         from pypdf import PdfReader  # type: ignore[import-untyped]

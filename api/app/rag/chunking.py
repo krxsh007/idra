@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import Any
+
 from app.rag.parser import ParsedDocument
 
 
@@ -106,7 +106,9 @@ def chunk_parsed_document(
                 if line.startswith("#"):
                     current_heading = line.lstrip("#").strip()
 
-            split_blocks = split_text_recursively(block, max_chars=max_chars, overlap_chars=overlap_chars)
+            split_blocks = split_text_recursively(
+                block, max_chars=max_chars, overlap_chars=overlap_chars
+            )
             for split_txt in split_blocks:
                 tokens = estimate_token_count(split_txt)
                 chunk = DocumentChunk(

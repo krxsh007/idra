@@ -17,41 +17,44 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def run_sql(sql: str) -> None:
+    for stmt in sql.strip().split(";"):
+        stmt = stmt.strip()
+        if stmt:
+            op.execute(stmt)
+
+
 def upgrade() -> None:
     # Extensions
-    op.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-    op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto;")
+    run_sql("CREATE EXTENSION IF NOT EXISTS postgis;")
+    run_sql("CREATE EXTENSION IF NOT EXISTS vector;")
+    run_sql("CREATE EXTENSION IF NOT EXISTS pgcrypto;")
 
     # Custom Enum Types
-    op.execute("CREATE TYPE user_role AS ENUM ('ADMIN','RESPONDER','CITIZEN');")
-    op.execute(
+    run_sql("CREATE TYPE user_role AS ENUM ('ADMIN','RESPONDER','CITIZEN');")
+    run_sql(
         "CREATE TYPE disaster_type AS ENUM "
         "('FLOOD','EARTHQUAKE','CYCLONE','LANDSLIDE','WILDFIRE','OTHER');"
     )
-    op.execute("CREATE TYPE severity_level AS ENUM ('LOW','MODERATE','HIGH','SEVERE');")
-    op.execute("CREATE TYPE event_status AS ENUM ('ACTIVE','MONITORING','CLOSED');")
-    op.execute("CREATE TYPE facility_type AS ENUM ('HOSPITAL','SHELTER');")
-    op.execute("CREATE TYPE report_source AS ENUM ('CITIZEN','RESPONDER','SENSOR','SEED');")
-    op.execute(
-        "CREATE TYPE run_status AS ENUM ('QUEUED','RUNNING','PARTIAL','COMPLETED','FAILED');"
-    )
-    op.execute("""
+    run_sql("CREATE TYPE severity_level AS ENUM ('LOW','MODERATE','HIGH','SEVERE');")
+    run_sql("CREATE TYPE event_status AS ENUM ('ACTIVE','MONITORING','CLOSED');")
+    run_sql("CREATE TYPE facility_type AS ENUM ('HOSPITAL','SHELTER');")
+    run_sql("CREATE TYPE report_source AS ENUM ('CITIZEN','RESPONDER','SENSOR','SEED');")
+    run_sql("CREATE TYPE run_status AS ENUM ('QUEUED','RUNNING','PARTIAL','COMPLETED','FAILED');")
+    run_sql("""
         CREATE TYPE agent_name AS ENUM (
             'DISASTER_ASSESSMENT','RESCUE_PLANNING','EVACUATION',
             'HOSPITAL_RECOMMENDATION','SHELTER_ALLOCATION',
             'RESOURCE_COORDINATION','CITIZEN_ASSISTANCE','SYNTHESIS'
         );
     """)
-    op.execute(
+    run_sql(
         "CREATE TYPE agent_status AS ENUM "
         "('SKIPPED','SUCCESS','FAILED','TIMEOUT','INSUFFICIENT_EVIDENCE');"
     )
-    op.execute(
-        "CREATE TYPE verification_st AS ENUM ('PENDING','VERIFIED','OVERRIDDEN','REJECTED');"
-    )
-    op.execute("CREATE TYPE provenance AS ENUM ('REAL','SIMULATED','SYNTHETIC');")
-    op.execute("""
+    run_sql("CREATE TYPE verification_st AS ENUM ('PENDING','VERIFIED','OVERRIDDEN','REJECTED');")
+    run_sql("CREATE TYPE provenance AS ENUM ('REAL','SIMULATED','SYNTHETIC');")
+    run_sql("""
         CREATE TYPE resource_kind AS ENUM (
             'MEDICAL_TEAM','RESCUE_BOAT','AMBULANCE','FOOD_KIT',
             'WATER_TANKER','BLANKET_KIT','GENERATOR','RESCUE_TEAM'
@@ -59,7 +62,7 @@ def upgrade() -> None:
     """)
 
     # 1. users
-    op.execute("""
+    run_sql("""
         CREATE TABLE users (
             id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             email          TEXT NOT NULL UNIQUE,
@@ -72,7 +75,7 @@ def upgrade() -> None:
     """)
 
     # 2. disaster_events
-    op.execute("""
+    run_sql("""
         CREATE TABLE disaster_events (
             id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             name            TEXT NOT NULL,
@@ -92,7 +95,7 @@ def upgrade() -> None:
     """)
 
     # 3. incident_reports
-    op.execute("""
+    run_sql("""
         CREATE TABLE incident_reports (
             id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             event_id       UUID REFERENCES disaster_events(id) ON DELETE CASCADE,
@@ -112,7 +115,7 @@ def upgrade() -> None:
     """)
 
     # 4. hazard_zones
-    op.execute("""
+    run_sql("""
         CREATE TABLE hazard_zones (
             id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             event_id      UUID REFERENCES disaster_events(id) ON DELETE CASCADE,
@@ -133,7 +136,7 @@ def upgrade() -> None:
     """)
 
     # 5. facilities
-    op.execute("""
+    run_sql("""
         CREATE TABLE facilities (
             id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             external_ref      TEXT UNIQUE,
@@ -158,7 +161,7 @@ def upgrade() -> None:
     """)
 
     # 6. facility_capacity_log
-    op.execute("""
+    run_sql("""
         CREATE TABLE facility_capacity_log (
             id            BIGSERIAL PRIMARY KEY,
             facility_id   UUID NOT NULL REFERENCES facilities(id) ON DELETE CASCADE,
@@ -171,7 +174,7 @@ def upgrade() -> None:
     """)
 
     # 7. resources
-    op.execute("""
+    run_sql("""
         CREATE TABLE resources (
             id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             resource_kind  resource_kind NOT NULL,
@@ -189,7 +192,7 @@ def upgrade() -> None:
     """)
 
     # 8. road_nodes
-    op.execute("""
+    run_sql("""
         CREATE TABLE road_nodes (
             id        BIGINT PRIMARY KEY,
             geom      GEOMETRY(Point,4326) NOT NULL
@@ -198,7 +201,7 @@ def upgrade() -> None:
     """)
 
     # 9. road_edges
-    op.execute("""
+    run_sql("""
         CREATE TABLE road_edges (
             id            BIGSERIAL PRIMARY KEY,
             u             BIGINT NOT NULL REFERENCES road_nodes(id) ON DELETE CASCADE,
@@ -218,7 +221,7 @@ def upgrade() -> None:
     """)
 
     # 10. kb_documents
-    op.execute("""
+    run_sql("""
         CREATE TABLE kb_documents (
             id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             title          TEXT NOT NULL,
@@ -237,7 +240,7 @@ def upgrade() -> None:
     """)
 
     # 11. kb_chunks
-    op.execute("""
+    run_sql("""
         CREATE TABLE kb_chunks (
             id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             document_id  UUID NOT NULL REFERENCES kb_documents(id) ON DELETE CASCADE,
@@ -256,7 +259,7 @@ def upgrade() -> None:
     """)
 
     # 12. agent_runs
-    op.execute("""
+    run_sql("""
         CREATE TABLE agent_runs (
             id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             event_id           UUID NOT NULL REFERENCES disaster_events(id) ON DELETE CASCADE,
@@ -275,7 +278,7 @@ def upgrade() -> None:
     """)
 
     # 13. agent_outputs
-    op.execute("""
+    run_sql("""
         CREATE TABLE agent_outputs (
             id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             run_id        UUID NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
@@ -295,7 +298,7 @@ def upgrade() -> None:
     """)
 
     # 14. recommendations
-    op.execute("""
+    run_sql("""
         CREATE TABLE recommendations (
             id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             run_id         UUID NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
@@ -322,7 +325,7 @@ def upgrade() -> None:
     """)
 
     # 15. recommendation_citations
-    op.execute("""
+    run_sql("""
         CREATE TABLE recommendation_citations (
             id                BIGSERIAL PRIMARY KEY,
             recommendation_id UUID NOT NULL REFERENCES recommendations(id) ON DELETE CASCADE,
@@ -337,7 +340,7 @@ def upgrade() -> None:
     """)
 
     # 16. routes
-    op.execute("""
+    run_sql("""
         CREATE TABLE routes (
             id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             run_id              UUID REFERENCES agent_runs(id) ON DELETE CASCADE,
@@ -360,7 +363,7 @@ def upgrade() -> None:
     """)
 
     # 17. resource_allocations
-    op.execute("""
+    run_sql("""
         CREATE TABLE resource_allocations (
             id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             run_id            UUID NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
@@ -377,7 +380,7 @@ def upgrade() -> None:
     """)
 
     # 18. chat_sessions
-    op.execute("""
+    run_sql("""
         CREATE TABLE chat_sessions (
             id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             event_id    UUID REFERENCES disaster_events(id) ON DELETE SET NULL,
@@ -387,7 +390,7 @@ def upgrade() -> None:
     """)
 
     # 19. chat_messages
-    op.execute("""
+    run_sql("""
         CREATE TABLE chat_messages (
             id           BIGSERIAL PRIMARY KEY,
             session_id   UUID NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
@@ -402,7 +405,7 @@ def upgrade() -> None:
     """)
 
     # 20. audit_log
-    op.execute("""
+    run_sql("""
         CREATE TABLE audit_log (
             id          BIGSERIAL PRIMARY KEY,
             actor_id    UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -419,36 +422,36 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DROP TABLE IF EXISTS audit_log CASCADE;")
-    op.execute("DROP TABLE IF EXISTS chat_messages CASCADE;")
-    op.execute("DROP TABLE IF EXISTS chat_sessions CASCADE;")
-    op.execute("DROP TABLE IF EXISTS resource_allocations CASCADE;")
-    op.execute("DROP TABLE IF EXISTS routes CASCADE;")
-    op.execute("DROP TABLE IF EXISTS recommendation_citations CASCADE;")
-    op.execute("DROP TABLE IF EXISTS recommendations CASCADE;")
-    op.execute("DROP TABLE IF EXISTS agent_outputs CASCADE;")
-    op.execute("DROP TABLE IF EXISTS agent_runs CASCADE;")
-    op.execute("DROP TABLE IF EXISTS kb_chunks CASCADE;")
-    op.execute("DROP TABLE IF EXISTS kb_documents CASCADE;")
-    op.execute("DROP TABLE IF EXISTS road_edges CASCADE;")
-    op.execute("DROP TABLE IF EXISTS road_nodes CASCADE;")
-    op.execute("DROP TABLE IF EXISTS resources CASCADE;")
-    op.execute("DROP TABLE IF EXISTS facility_capacity_log CASCADE;")
-    op.execute("DROP TABLE IF EXISTS facilities CASCADE;")
-    op.execute("DROP TABLE IF EXISTS hazard_zones CASCADE;")
-    op.execute("DROP TABLE IF EXISTS incident_reports CASCADE;")
-    op.execute("DROP TABLE IF EXISTS disaster_events CASCADE;")
-    op.execute("DROP TABLE IF EXISTS users CASCADE;")
+    run_sql("DROP TABLE IF EXISTS audit_log CASCADE;")
+    run_sql("DROP TABLE IF EXISTS chat_messages CASCADE;")
+    run_sql("DROP TABLE IF EXISTS chat_sessions CASCADE;")
+    run_sql("DROP TABLE IF EXISTS resource_allocations CASCADE;")
+    run_sql("DROP TABLE IF EXISTS routes CASCADE;")
+    run_sql("DROP TABLE IF EXISTS recommendation_citations CASCADE;")
+    run_sql("DROP TABLE IF EXISTS recommendations CASCADE;")
+    run_sql("DROP TABLE IF EXISTS agent_outputs CASCADE;")
+    run_sql("DROP TABLE IF EXISTS agent_runs CASCADE;")
+    run_sql("DROP TABLE IF EXISTS kb_chunks CASCADE;")
+    run_sql("DROP TABLE IF EXISTS kb_documents CASCADE;")
+    run_sql("DROP TABLE IF EXISTS road_edges CASCADE;")
+    run_sql("DROP TABLE IF EXISTS road_nodes CASCADE;")
+    run_sql("DROP TABLE IF EXISTS resources CASCADE;")
+    run_sql("DROP TABLE IF EXISTS facility_capacity_log CASCADE;")
+    run_sql("DROP TABLE IF EXISTS facilities CASCADE;")
+    run_sql("DROP TABLE IF EXISTS hazard_zones CASCADE;")
+    run_sql("DROP TABLE IF EXISTS incident_reports CASCADE;")
+    run_sql("DROP TABLE IF EXISTS disaster_events CASCADE;")
+    run_sql("DROP TABLE IF EXISTS users CASCADE;")
 
-    op.execute("DROP TYPE IF EXISTS resource_kind CASCADE;")
-    op.execute("DROP TYPE IF EXISTS provenance CASCADE;")
-    op.execute("DROP TYPE IF EXISTS verification_st CASCADE;")
-    op.execute("DROP TYPE IF EXISTS agent_status CASCADE;")
-    op.execute("DROP TYPE IF EXISTS agent_name CASCADE;")
-    op.execute("DROP TYPE IF EXISTS run_status CASCADE;")
-    op.execute("DROP TYPE IF EXISTS report_source CASCADE;")
-    op.execute("DROP TYPE IF EXISTS facility_type CASCADE;")
-    op.execute("DROP TYPE IF EXISTS event_status CASCADE;")
-    op.execute("DROP TYPE IF EXISTS severity_level CASCADE;")
-    op.execute("DROP TYPE IF EXISTS disaster_type CASCADE;")
+    run_sql("DROP TYPE IF EXISTS resource_kind CASCADE;")
+    run_sql("DROP TYPE IF EXISTS provenance CASCADE;")
+    run_sql("DROP TYPE IF EXISTS verification_st CASCADE;")
+    run_sql("DROP TYPE IF EXISTS agent_status CASCADE;")
+    run_sql("DROP TYPE IF EXISTS agent_name CASCADE;")
+    run_sql("DROP TYPE IF EXISTS run_status CASCADE;")
+    run_sql("DROP TYPE IF EXISTS report_source CASCADE;")
+    run_sql("DROP TYPE IF EXISTS facility_type CASCADE;")
+    run_sql("DROP TYPE IF EXISTS event_status CASCADE;")
+    run_sql("DROP TYPE IF EXISTS severity_level CASCADE;")
+    run_sql("DROP TYPE IF EXISTS disaster_type CASCADE;")
     op.execute("DROP TYPE IF EXISTS user_role CASCADE;")

@@ -46,9 +46,9 @@ def test_all_tables_registered_in_metadata() -> None:
         "audit_log",
     }
     actual_tables = set(Base.metadata.tables.keys())
-    assert expected_tables.issubset(actual_tables), (
-        f"Missing tables: {expected_tables - actual_tables}"
-    )
+    assert expected_tables.issubset(
+        actual_tables
+    ), f"Missing tables: {expected_tables - actual_tables}"
 
 
 def test_safety_check_constraints_registered() -> None:
