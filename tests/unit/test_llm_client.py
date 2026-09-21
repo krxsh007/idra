@@ -1,8 +1,7 @@
 import pytest
-from pydantic import BaseModel, Field
-
 from app.llm.client import get_llm_client
 from app.llm.fake import FakeLLMClient
+from pydantic import BaseModel, Field
 
 
 class SampleSchema(BaseModel):

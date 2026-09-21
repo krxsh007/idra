@@ -15,6 +15,7 @@ from app.core.errors import (
     validation_exception_handler,
 )
 from app.core.logging import logger, request_id_ctx, setup_logging
+from app.routers.agents import router as agents_router
 from app.routers.auth import router as auth_router
 from app.routers.events import router as events_router
 from app.routers.facilities import router as facilities_router
@@ -111,3 +112,4 @@ app.include_router(events_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(hazards_router, prefix="/api/v1")
 app.include_router(facilities_router, prefix="/api/v1")
+app.include_router(agents_router, prefix="/api/v1")
