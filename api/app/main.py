@@ -22,6 +22,7 @@ from app.routers.facilities import router as facilities_router
 from app.routers.hazards import router as hazards_router
 from app.routers.health import router as health_router
 from app.routers.reports import router as reports_router
+from app.routers.runs import router as runs_router
 
 
 @asynccontextmanager
@@ -113,3 +114,4 @@ app.include_router(reports_router, prefix="/api/v1")
 app.include_router(hazards_router, prefix="/api/v1")
 app.include_router(facilities_router, prefix="/api/v1")
 app.include_router(agents_router, prefix="/api/v1")
+app.include_router(runs_router, prefix="/api/v1")
