@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.assessment import DisasterAssessmentAgent
 from app.agents.base import AgentFailure, RunContext
 from app.agents.facilities import FacilityRecommendationAgent
+from app.agents.rescue_planning import RescuePlanningAgent
 from app.agents.resources import ResourceAllocationAgent
 from app.agents.routing import RoutingAgent
 from app.core.config import settings
@@ -16,10 +17,15 @@ from app.db.models.enums import AgentName
 from app.db.models.users import User
 from app.db.session import get_db
 from app.llm.client import get_llm_client
+from app.orchestration.synthesis import SynthesisAgent
 from app.schemas.agents.assessment import AssessmentInput, AssessmentOutput
 from app.schemas.agents.facilities import (
     FacilityRecommendationInput,
     FacilityRecommendationOutput,
+)
+from app.schemas.agents.planning import (
+    RescuePlanningInput,
+    RescuePlanningOutput,
 )
 from app.schemas.agents.resources import (
     ResourceAllocationInput,
@@ -29,13 +35,19 @@ from app.schemas.agents.routing import (
     RoutingInput,
     RoutingOutput,
 )
+from app.schemas.agents.synthesis import (
+    SynthesisInput,
+    SynthesisOutput,
+)
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
 
 assessment_agent = DisasterAssessmentAgent()
+planning_agent = RescuePlanningAgent()
 facility_agent = FacilityRecommendationAgent()
 resource_agent = ResourceAllocationAgent()
 routing_agent = RoutingAgent()
+synthesis_agent = SynthesisAgent()
 
 
 @router.post(
@@ -68,6 +80,40 @@ async def run_assessment_endpoint(
 
         raise HTTPException(
             status_code=status_code,
+            detail={
+                "code": result.code,
+                "message": result.message,
+                "details": result.details,
+            },
+        )
+
+    return result
+
+
+@router.post(
+    "/planning",
+    response_model=RescuePlanningOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Evaluate Rescue Planning Agent directly",
+)
+async def run_planning_endpoint(
+    input_data: RescuePlanningInput,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_responder),
+) -> Any:
+    llm = get_llm_client()
+    ctx = RunContext(
+        event_id=input_data.event.id,
+        agent_name=AgentName.RESCUE_PLANNING,
+        db=db,
+        llm=llm,
+        timeout_s=float(settings.AGENT_TIMEOUT_PLANNING_S),
+    )
+
+    result = await planning_agent.run(ctx, input_data)
+    if isinstance(result, AgentFailure):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail={
                 "code": result.code,
                 "message": result.message,
@@ -167,6 +213,40 @@ async def run_routing_endpoint(
     )
 
     result = await routing_agent.run(ctx, input_data)
+    if isinstance(result, AgentFailure):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": result.code,
+                "message": result.message,
+                "details": result.details,
+            },
+        )
+
+    return result
+
+
+@router.post(
+    "/synthesis",
+    response_model=SynthesisOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Evaluate Synthesis Agent directly",
+)
+async def run_synthesis_endpoint(
+    input_data: SynthesisInput,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_responder),
+) -> Any:
+    llm = get_llm_client()
+    ctx = RunContext(
+        event_id=input_data.event.id,
+        agent_name=AgentName.SYNTHESIS,
+        db=db,
+        llm=llm,
+        timeout_s=float(settings.AGENT_TIMEOUT_SYNTHESIS_S),
+    )
+
+    result = await synthesis_agent.run(ctx, input_data)
     if isinstance(result, AgentFailure):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

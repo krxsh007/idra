@@ -15,7 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.db.models.enums import AgentName, AgentStatus, RunStatus, VerificationStatus
 from app.db.models.events import DisasterEvent, HazardZone, IncidentReport
-from app.db.models.runs import AgentOutput, AgentRun, Recommendation, ResourceAllocation, Route
+from app.db.models.runs import (
+    AgentOutput,
+    AgentRun,
+    Recommendation,
+    RecommendationCitation,
+    ResourceAllocation,
+    Route,
+)
 from app.llm.client import LLMClient
 from app.orchestration.graph import create_orchestrator_graph
 from app.orchestration.state import OrchestratorState
@@ -163,44 +170,88 @@ class OrchestrationEngine:
             )
             db.add(agent_output)
 
-        # 6. Persist Facility Recommendations
-        fac_out = final_state.get("facilities_output")
-        if fac_out and isinstance(fac_out, dict):
-            for hosp in fac_out.get("recommended_hospitals", []):
-                rec_h = Recommendation(
-                    run_id=agent_run.id,
-                    event_id=event_id,
-                    agent=AgentName.HOSPITAL_RECOMMENDATION,
-                    priority=1,
-                    title=f"Hospital Routing: {hosp.get('name')}",
-                    body=(
-                        f"Recommended hospital with {hosp.get('available_capacity')} beds. "
-                        f"Distance: {hosp.get('distance_m')}m."
-                    ),
-                    origin="AI_GENERATED",
-                    confidence=0.9,
-                    structured_ref={"facility_id": hosp.get("facility_id")},
-                    verification_status=VerificationStatus.PENDING,
-                )
-                db.add(rec_h)
+        # 6. Persist Prioritized Recommendations & Citations from Synthesis
+        synth_out = final_state.get("synthesis_output")
+        if synth_out and isinstance(synth_out, dict) and synth_out.get("recommendations"):
+            for rec_item in synth_out.get("recommendations", []):
+                agent_val = rec_item.get("agent")
+                try:
+                    agent_enum = AgentName(agent_val)
+                except Exception:
+                    agent_enum = AgentName.SYNTHESIS
 
-            for sh in fac_out.get("recommended_shelters", []):
-                rec_s = Recommendation(
+                rec_db = Recommendation(
                     run_id=agent_run.id,
                     event_id=event_id,
-                    agent=AgentName.SHELTER_ALLOCATION,
-                    priority=2,
-                    title=f"Evacuation Shelter: {sh.get('name')}",
-                    body=(
-                        f"Recommended shelter with {sh.get('available_capacity')} capacity. "
-                        f"Distance: {sh.get('distance_m')}m."
-                    ),
-                    origin="AI_GENERATED",
-                    confidence=0.85,
-                    structured_ref={"facility_id": sh.get("facility_id")},
+                    agent=agent_enum,
+                    priority=rec_item.get("priority", 3),
+                    title=rec_item.get("title", "Recommendation"),
+                    body=rec_item.get("body", ""),
+                    origin=rec_item.get("origin", "AI_GENERATED"),
+                    confidence=0.9,
+                    structured_ref=rec_item.get("structured_ref"),
                     verification_status=VerificationStatus.PENDING,
                 )
-                db.add(rec_s)
+                db.add(rec_db)
+                await db.flush()
+
+                for cit in rec_item.get("citations", []):
+                    c_id = cit.get("chunk_id")
+                    chunk_uuid = None
+                    if c_id:
+                        try:
+                            chunk_uuid = uuid.UUID(str(c_id))
+                        except Exception:
+                            chunk_uuid = None
+
+                    cit_db = RecommendationCitation(
+                        recommendation_id=rec_db.id,
+                        chunk_id=chunk_uuid,
+                        document_title=cit.get("document_title", "Official SOP Document"),
+                        source_url=cit.get("source_url"),
+                        quoted_span=cit.get("quoted_span"),
+                        relevance_score=cit.get("relevance_score"),
+                    )
+                    db.add(cit_db)
+        else:
+            # Fallback: persist individual facility recommendations if synthesis output empty
+            fac_out = final_state.get("facilities_output")
+            if fac_out and isinstance(fac_out, dict):
+                for hosp in fac_out.get("recommended_hospitals", []):
+                    rec_h = Recommendation(
+                        run_id=agent_run.id,
+                        event_id=event_id,
+                        agent=AgentName.HOSPITAL_RECOMMENDATION,
+                        priority=1,
+                        title=f"Hospital Routing: {hosp.get('name')}",
+                        body=(
+                            f"Recommended hospital with {hosp.get('available_capacity')} beds. "
+                            f"Distance: {hosp.get('distance_m')}m."
+                        ),
+                        origin="AI_GENERATED",
+                        confidence=0.9,
+                        structured_ref={"facility_id": hosp.get("facility_id")},
+                        verification_status=VerificationStatus.PENDING,
+                    )
+                    db.add(rec_h)
+
+                for sh in fac_out.get("recommended_shelters", []):
+                    rec_s = Recommendation(
+                        run_id=agent_run.id,
+                        event_id=event_id,
+                        agent=AgentName.SHELTER_ALLOCATION,
+                        priority=2,
+                        title=f"Evacuation Shelter: {sh.get('name')}",
+                        body=(
+                            f"Recommended shelter with {sh.get('available_capacity')} capacity. "
+                            f"Distance: {sh.get('distance_m')}m."
+                        ),
+                        origin="AI_GENERATED",
+                        confidence=0.85,
+                        structured_ref={"facility_id": sh.get("facility_id")},
+                        verification_status=VerificationStatus.PENDING,
+                    )
+                    db.add(rec_s)
 
         # 7. Persist Resource Allocations
         res_out = final_state.get("resources_output")

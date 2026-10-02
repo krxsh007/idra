@@ -8,12 +8,13 @@ from geoalchemy2.shape import to_shape
 from shapely.geometry import mapping
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.errors import AppException, ErrorCode
 from app.core.security import require_admin, require_responder
 from app.db.models.enums import DisasterType, EventStatus
 from app.db.models.events import DisasterEvent, HazardZone, IncidentReport
-from app.db.models.runs import Route
+from app.db.models.runs import Recommendation, Route
 from app.db.models.users import User
 from app.db.session import get_db
 from app.gis.validation import point_to_wkt, validate_point_in_study_area
@@ -407,6 +408,62 @@ async def get_event_routes(
                 "blocked_edge_count": r.blocked_edge_count,
                 "algorithm": r.algorithm,
                 "computed_at": r.computed_at.isoformat(),
+            }
+        )
+    return items
+
+
+@router.get(
+    "/{event_id}/recommendations",
+    response_model=list[dict[str, Any]],
+    status_code=status.HTTP_200_OK,
+    summary="List all prioritized recommendations for an event",
+)
+async def get_event_recommendations(
+    event_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    stmt = (
+        select(Recommendation)
+        .options(selectinload(Recommendation.citations))
+        .where(Recommendation.event_id == event_id)
+        .order_by(Recommendation.priority.asc(), Recommendation.created_at.desc())
+    )
+    res = await db.execute(stmt)
+    recommendations = res.scalars().all()
+
+    items = []
+    for rec in recommendations:
+        cits = []
+        for c in rec.citations:
+            cits.append(
+                {
+                    "id": c.id,
+                    "chunk_id": str(c.chunk_id) if c.chunk_id else None,
+                    "document_title": c.document_title,
+                    "source_url": c.source_url,
+                    "quoted_span": c.quoted_span,
+                    "relevance_score": float(c.relevance_score) if c.relevance_score else None,
+                }
+            )
+        items.append(
+            {
+                "id": str(rec.id),
+                "run_id": str(rec.run_id),
+                "event_id": str(rec.event_id),
+                "agent": rec.agent.value,
+                "priority": rec.priority,
+                "title": rec.title,
+                "body": rec.body,
+                "origin": rec.origin,
+                "confidence": float(rec.confidence) if rec.confidence is not None else None,
+                "structured_ref": rec.structured_ref,
+                "verification_status": rec.verification_status.value,
+                "verified_by": str(rec.verified_by) if rec.verified_by else None,
+                "verified_at": rec.verified_at.isoformat() if rec.verified_at else None,
+                "override_note": rec.override_note,
+                "citations": cits,
+                "created_at": rec.created_at.isoformat(),
             }
         )
     return items

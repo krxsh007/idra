@@ -83,15 +83,19 @@ async def test_orchestrator_graph_success_flow():
 
         assert result["assessment_status"] == AgentStatus.SUCCESS
         assert result["needs_human_review"] is False
-        assert len(result["outputs"]) == 4
+        assert len(result["outputs"]) == 6
         agents_run = [o["agent"] for o in result["outputs"]]
         assert agents_run == [
             AgentName.DISASTER_ASSESSMENT.value,
+            AgentName.RESCUE_PLANNING.value,
             AgentName.HOSPITAL_RECOMMENDATION.value,
-            AgentName.RESOURCE_COORDINATION.value,
             AgentName.EVACUATION.value,
+            AgentName.RESOURCE_COORDINATION.value,
+            AgentName.SYNTHESIS.value,
         ]
         assert all(o["status"] == AgentStatus.SUCCESS for o in result["outputs"])
+        assert result.get("synthesis_output") is not None
+        assert result.get("conflicts_output") is not None
 
 
 @pytest.mark.asyncio

@@ -11,16 +11,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.assessment import DisasterAssessmentAgent
 from app.agents.base import AgentFailure, RunContext
 from app.agents.facilities import FacilityRecommendationAgent
+from app.agents.rescue_planning import RescuePlanningAgent
 from app.agents.resources import ResourceAllocationAgent
 from app.agents.routing import RoutingAgent
-from app.core.config import settings
-from app.db.models.enums import AgentName, AgentStatus
+from app.db.models.enums import AgentName, AgentStatus, SeverityLevel
 from app.llm.client import LLMClient
-from app.orchestration.state import AgentExecutionRecord, OrchestratorState
+from app.orchestration.conflicts import ConflictResolver
+from app.orchestration.selection import evaluate_agent_activation
+from app.orchestration.state import OrchestratorState
+from app.orchestration.synthesis import SynthesisAgent
 from app.schemas.agents.assessment import AssessmentInput
 from app.schemas.agents.facilities import FacilityCandidate, FacilityRecommendationInput
+from app.schemas.agents.planning import PrioritizedZone, RescuePlanningInput
 from app.schemas.agents.resources import ResourceAllocationInput
 from app.schemas.agents.routing import RoutingInput
+from app.schemas.agents.synthesis import SynthesisInput
 from app.schemas.events import EpicenterPoint, EventResponse
 from app.schemas.hazards import GeoJSONPolygon, HazardZoneResponse
 from app.schemas.reports import ReportResponse
@@ -28,9 +33,12 @@ from app.schemas.reports import ReportResponse
 logger = structlog.get_logger(__name__)
 
 assessment_agent = DisasterAssessmentAgent()
+planning_agent = RescuePlanningAgent()
 facility_agent = FacilityRecommendationAgent()
 resource_agent = ResourceAllocationAgent()
 routing_agent = RoutingAgent()
+conflict_resolver = ConflictResolver()
+synthesis_agent = SynthesisAgent()
 
 
 def parse_state_into_assessment_input(state: OrchestratorState) -> AssessmentInput:
@@ -94,6 +102,7 @@ def create_orchestrator_graph(
 ) -> Any:
     workflow = StateGraph(OrchestratorState)
 
+    # 1. Assessment Node
     async def assessment_node(state: OrchestratorState) -> dict[str, Any]:
         start = time.perf_counter()
         event_id_val = uuid.UUID(state["event_id"])
@@ -105,54 +114,123 @@ def create_orchestrator_graph(
             agent_name=AgentName.DISASTER_ASSESSMENT,
             db=db,
             llm=llm,
-            timeout_s=float(settings.AGENT_TIMEOUT_ASSESSMENT_S),
         )
 
-        input_data = parse_state_into_assessment_input(state)
-        result = await assessment_agent.run(ctx, input_data)
+        assessment_in = parse_state_into_assessment_input(state)
+        result = await assessment_agent.run(ctx, assessment_in)
         latency_ms = int((time.perf_counter() - start) * 1000)
-
         existing_outputs = list(state.get("outputs", []))
 
         if isinstance(result, AgentFailure):
-            record: AgentExecutionRecord = {
-                "agent": AgentName.DISASTER_ASSESSMENT.value,
-                "status": result.status,
-                "payload": None,
-                "latency_ms": latency_ms,
-                "error_code": result.code,
-                "error_message": result.message,
-            }
-            existing_outputs.append(record)
+            existing_outputs.append(
+                {
+                    "agent": AgentName.DISASTER_ASSESSMENT.value,
+                    "status": result.status,
+                    "payload": None,
+                    "latency_ms": latency_ms,
+                    "error_code": result.code,
+                    "error_message": result.message,
+                }
+            )
             return {
                 "assessment_output": None,
                 "assessment_status": result.status,
+                "assessed_severity": None,
                 "needs_human_review": True,
                 "is_terminal": True,
                 "outputs": existing_outputs,
             }
 
-        record = {
-            "agent": AgentName.DISASTER_ASSESSMENT.value,
-            "status": AgentStatus.SUCCESS,
-            "payload": result.model_dump(mode="json"),
-            "latency_ms": latency_ms,
-            "error_code": None,
-            "error_message": None,
-        }
-        existing_outputs.append(record)
-
-        needs_review = result.confidence < settings.ASSESSMENT_CONFIDENCE_FLOOR
-
+        existing_outputs.append(
+            {
+                "agent": AgentName.DISASTER_ASSESSMENT.value,
+                "status": AgentStatus.SUCCESS,
+                "payload": result.model_dump(mode="json"),
+                "latency_ms": latency_ms,
+                "error_code": None,
+                "error_message": None,
+            }
+        )
         return {
             "assessment_output": result.model_dump(mode="json"),
             "assessment_status": AgentStatus.SUCCESS,
             "assessed_severity": result.severity,
-            "needs_human_review": needs_review,
-            "is_terminal": needs_review,
+            "needs_human_review": result.confidence < 0.5,
+            "is_terminal": result.confidence < 0.5,
             "outputs": existing_outputs,
         }
 
+    # 2. Rescue Planning Node
+    async def planning_node(state: OrchestratorState) -> dict[str, Any]:
+        start = time.perf_counter()
+        event_id_val = uuid.UUID(state["event_id"])
+        run_id_val = uuid.UUID(state["run_id"]) if "run_id" in state else uuid.uuid4()
+
+        assessment_in = parse_state_into_assessment_input(state)
+        as_out = state.get("assessment_output") or {}
+        sev = state.get("assessed_severity") or SeverityLevel.MODERATE
+
+        activation = evaluate_agent_activation(as_out)
+        if not activation.get(AgentName.RESCUE_PLANNING, False):
+            return {
+                "planning_output": None,
+                "planning_status": AgentStatus.SKIPPED,
+            }
+
+        ctx = RunContext(
+            event_id=event_id_val,
+            run_id=run_id_val,
+            agent_name=AgentName.RESCUE_PLANNING,
+            db=db,
+            llm=llm,
+        )
+
+        planning_in = RescuePlanningInput(
+            event=assessment_in.event,
+            reports=assessment_in.reports,
+            hazard_zones=assessment_in.hazard_zones,
+            assessment_severity=sev,
+            assessment_summary=as_out.get("affected_area_summary", ""),
+        )
+
+        result = await planning_agent.run(ctx, planning_in)
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        existing_outputs = list(state.get("outputs", []))
+
+        if isinstance(result, AgentFailure):
+            existing_outputs.append(
+                {
+                    "agent": AgentName.RESCUE_PLANNING.value,
+                    "status": result.status,
+                    "payload": None,
+                    "latency_ms": latency_ms,
+                    "error_code": result.code,
+                    "error_message": result.message,
+                }
+            )
+            return {
+                "planning_output": None,
+                "planning_status": result.status,
+                "outputs": existing_outputs,
+            }
+
+        existing_outputs.append(
+            {
+                "agent": AgentName.RESCUE_PLANNING.value,
+                "status": AgentStatus.SUCCESS,
+                "payload": result.model_dump(mode="json"),
+                "latency_ms": latency_ms,
+                "error_code": None,
+                "error_message": None,
+            }
+        )
+        return {
+            "planning_output": result.model_dump(mode="json"),
+            "planning_status": AgentStatus.SUCCESS,
+            "outputs": existing_outputs,
+        }
+
+    # 3. Facilities Node
     async def facilities_node(state: OrchestratorState) -> dict[str, Any]:
         start = time.perf_counter()
         event_id_val = uuid.UUID(state["event_id"])
@@ -164,22 +242,22 @@ def create_orchestrator_graph(
             agent_name=AgentName.HOSPITAL_RECOMMENDATION,
             db=db,
             llm=llm,
-            timeout_s=float(settings.AGENT_TIMEOUT_FACILITY_S),
         )
 
         assessment_in = parse_state_into_assessment_input(state)
-        ass_out = state.get("assessment_output") or {}
+        as_out = state.get("assessment_output") or {}
+        sev = state.get("assessed_severity") or SeverityLevel.MODERATE
 
-        fac_input = FacilityRecommendationInput(
+        facility_in = FacilityRecommendationInput(
             event=assessment_in.event,
-            assessment_summary=ass_out.get("affected_area_summary", "Disaster impact area"),
-            severity=state.get("assessed_severity", assessment_in.event.disaster_type),  # type: ignore[arg-type]
-            casualties_reported=ass_out.get("casualties_reported", False),
-            estimated_people_affected=ass_out.get("estimated_people_affected", 0),
+            assessment_summary=as_out.get("affected_area_summary", ""),
+            severity=sev,
+            casualties_reported=as_out.get("casualties_reported", False),
+            estimated_people_affected=as_out.get("estimated_people_affected", 0),
             epicenter=assessment_in.event.epicenter,
         )
 
-        result = await facility_agent.run(ctx, fac_input)
+        result = await facility_agent.run(ctx, facility_in)
         latency_ms = int((time.perf_counter() - start) * 1000)
         existing_outputs = list(state.get("outputs", []))
 
@@ -216,70 +294,7 @@ def create_orchestrator_graph(
             "outputs": existing_outputs,
         }
 
-    async def resources_node(state: OrchestratorState) -> dict[str, Any]:
-        start = time.perf_counter()
-        event_id_val = uuid.UUID(state["event_id"])
-        run_id_val = uuid.UUID(state["run_id"]) if "run_id" in state else uuid.uuid4()
-
-        ctx = RunContext(
-            event_id=event_id_val,
-            run_id=run_id_val,
-            agent_name=AgentName.RESOURCE_COORDINATION,
-            db=db,
-            llm=llm,
-            timeout_s=float(settings.AGENT_TIMEOUT_RESOURCE_S),
-        )
-
-        assessment_in = parse_state_into_assessment_input(state)
-        ass_out = state.get("assessment_output") or {}
-
-        res_input = ResourceAllocationInput(
-            event=assessment_in.event,
-            severity=state.get("assessed_severity", assessment_in.event.disaster_type),  # type: ignore[arg-type]
-            assessment_summary=ass_out.get("affected_area_summary", "Disaster impact area"),
-            estimated_people_affected=ass_out.get("estimated_people_affected", 0),
-            casualties_reported=ass_out.get("casualties_reported", False),
-            reports=assessment_in.reports,
-            hazard_zones=assessment_in.hazard_zones,
-        )
-
-        result = await resource_agent.run(ctx, res_input)
-        latency_ms = int((time.perf_counter() - start) * 1000)
-        existing_outputs = list(state.get("outputs", []))
-
-        if isinstance(result, AgentFailure):
-            existing_outputs.append(
-                {
-                    "agent": AgentName.RESOURCE_COORDINATION.value,
-                    "status": result.status,
-                    "payload": None,
-                    "latency_ms": latency_ms,
-                    "error_code": result.code,
-                    "error_message": result.message,
-                }
-            )
-            return {
-                "resources_output": None,
-                "resources_status": result.status,
-                "outputs": existing_outputs,
-            }
-
-        existing_outputs.append(
-            {
-                "agent": AgentName.RESOURCE_COORDINATION.value,
-                "status": AgentStatus.SUCCESS,
-                "payload": result.model_dump(mode="json"),
-                "latency_ms": latency_ms,
-                "error_code": None,
-                "error_message": None,
-            }
-        )
-        return {
-            "resources_output": result.model_dump(mode="json"),
-            "resources_status": AgentStatus.SUCCESS,
-            "outputs": existing_outputs,
-        }
-
+    # 4. Routing Node
     async def routing_node(state: OrchestratorState) -> dict[str, Any]:
         start = time.perf_counter()
         event_id_val = uuid.UUID(state["event_id"])
@@ -291,7 +306,6 @@ def create_orchestrator_graph(
             agent_name=AgentName.EVACUATION,
             db=db,
             llm=llm,
-            timeout_s=float(settings.AGENT_TIMEOUT_EVACUATION_S),
         )
 
         assessment_in = parse_state_into_assessment_input(state)
@@ -349,29 +363,182 @@ def create_orchestrator_graph(
             "outputs": existing_outputs,
         }
 
+    # 5. Resources Node
+    async def resources_node(state: OrchestratorState) -> dict[str, Any]:
+        start = time.perf_counter()
+        event_id_val = uuid.UUID(state["event_id"])
+        run_id_val = uuid.UUID(state["run_id"]) if "run_id" in state else uuid.uuid4()
+
+        ctx = RunContext(
+            event_id=event_id_val,
+            run_id=run_id_val,
+            agent_name=AgentName.RESOURCE_COORDINATION,
+            db=db,
+            llm=llm,
+        )
+
+        assessment_in = parse_state_into_assessment_input(state)
+        as_out = state.get("assessment_output") or {}
+        sev = state.get("assessed_severity") or SeverityLevel.MODERATE
+
+        planning_out = state.get("planning_output") or {}
+        prioritized_zones = [
+            PrioritizedZone.model_validate(z) for z in planning_out.get("prioritized_zones", [])
+        ]
+
+        resource_in = ResourceAllocationInput(
+            event=assessment_in.event,
+            severity=sev,
+            assessment_summary=as_out.get("affected_area_summary", ""),
+            estimated_people_affected=as_out.get("estimated_people_affected", 0),
+            casualties_reported=as_out.get("casualties_reported", False),
+            prioritized_zones=prioritized_zones,
+            reports=assessment_in.reports,
+            hazard_zones=assessment_in.hazard_zones,
+        )
+
+        result = await resource_agent.run(ctx, resource_in)
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        existing_outputs = list(state.get("outputs", []))
+
+        if isinstance(result, AgentFailure):
+            existing_outputs.append(
+                {
+                    "agent": AgentName.RESOURCE_COORDINATION.value,
+                    "status": result.status,
+                    "payload": None,
+                    "latency_ms": latency_ms,
+                    "error_code": result.code,
+                    "error_message": result.message,
+                }
+            )
+            return {
+                "resources_output": None,
+                "resources_status": result.status,
+                "outputs": existing_outputs,
+            }
+
+        existing_outputs.append(
+            {
+                "agent": AgentName.RESOURCE_COORDINATION.value,
+                "status": AgentStatus.SUCCESS,
+                "payload": result.model_dump(mode="json"),
+                "latency_ms": latency_ms,
+                "error_code": None,
+                "error_message": None,
+            }
+        )
+        return {
+            "resources_output": result.model_dump(mode="json"),
+            "resources_status": AgentStatus.SUCCESS,
+            "outputs": existing_outputs,
+        }
+
+    # 6. Conflicts Resolution Node
+    async def conflicts_node(state: OrchestratorState) -> dict[str, Any]:
+        conf_res = conflict_resolver.resolve(state)
+        return {
+            "conflicts_output": conf_res,
+            "facilities_output": conf_res.get(
+                "updated_facilities_output", state.get("facilities_output")
+            ),
+            "routing_output": conf_res.get("updated_routing_output", state.get("routing_output")),
+            "needs_human_review": conf_res.get(
+                "needs_human_review", state.get("needs_human_review", False)
+            ),
+        }
+
+    # 7. Synthesis Node
+    async def synthesis_node(state: OrchestratorState) -> dict[str, Any]:
+        start = time.perf_counter()
+        event_id_val = uuid.UUID(state["event_id"])
+        run_id_val = uuid.UUID(state["run_id"]) if "run_id" in state else uuid.uuid4()
+
+        ctx = RunContext(
+            event_id=event_id_val,
+            run_id=run_id_val,
+            agent_name=AgentName.SYNTHESIS,
+            db=db,
+            llm=llm,
+        )
+
+        assessment_in = parse_state_into_assessment_input(state)
+        synth_in = SynthesisInput(
+            event=assessment_in.event,
+            assessment_output=state.get("assessment_output"),
+            planning_output=state.get("planning_output"),
+            facilities_output=state.get("facilities_output"),
+            resources_output=state.get("resources_output"),
+            routing_output=state.get("routing_output"),
+            conflicts_output=state.get("conflicts_output"),
+        )
+
+        result = await synthesis_agent.run(ctx, synth_in)
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        existing_outputs = list(state.get("outputs", []))
+
+        if isinstance(result, AgentFailure):
+            existing_outputs.append(
+                {
+                    "agent": AgentName.SYNTHESIS.value,
+                    "status": result.status,
+                    "payload": None,
+                    "latency_ms": latency_ms,
+                    "error_code": result.code,
+                    "error_message": result.message,
+                }
+            )
+            return {
+                "synthesis_output": None,
+                "synthesis_status": result.status,
+                "outputs": existing_outputs,
+            }
+
+        existing_outputs.append(
+            {
+                "agent": AgentName.SYNTHESIS.value,
+                "status": AgentStatus.SUCCESS,
+                "payload": result.model_dump(mode="json"),
+                "latency_ms": latency_ms,
+                "error_code": None,
+                "error_message": None,
+            }
+        )
+        return {
+            "synthesis_output": result.model_dump(mode="json"),
+            "synthesis_status": AgentStatus.SUCCESS,
+            "outputs": existing_outputs,
+        }
+
     def check_assessment_branch(state: OrchestratorState) -> str:
         if state.get("assessment_status") != AgentStatus.SUCCESS:
             return END
         if state.get("needs_human_review", False):
             return END
-        return "facilities"
+        return "planning"
 
     workflow.add_node("assessment", assessment_node)
+    workflow.add_node("planning", planning_node)
     workflow.add_node("facilities", facilities_node)
-    workflow.add_node("resources", resources_node)
     workflow.add_node("routing", routing_node)
+    workflow.add_node("resources", resources_node)
+    workflow.add_node("conflicts", conflicts_node)
+    workflow.add_node("synthesis", synthesis_node)
 
     workflow.set_entry_point("assessment")
     workflow.add_conditional_edges(
         "assessment",
         check_assessment_branch,
         {
-            "facilities": "facilities",
+            "planning": "planning",
             END: END,
         },
     )
-    workflow.add_edge("facilities", "resources")
-    workflow.add_edge("resources", "routing")
-    workflow.add_edge("routing", END)
+    workflow.add_edge("planning", "facilities")
+    workflow.add_edge("facilities", "routing")
+    workflow.add_edge("routing", "resources")
+    workflow.add_edge("resources", "conflicts")
+    workflow.add_edge("conflicts", "synthesis")
+    workflow.add_edge("synthesis", END)
 
     return workflow.compile()
