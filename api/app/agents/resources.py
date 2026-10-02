@@ -16,9 +16,7 @@ from app.schemas.events import EpicenterPoint
 logger = structlog.get_logger(__name__)
 
 
-class ResourceAllocationAgent(
-    BaseAgent[ResourceAllocationInput, ResourceAllocationOutput]
-):
+class ResourceAllocationAgent(BaseAgent[ResourceAllocationInput, ResourceAllocationOutput]):
     """Allocates emergency resources to incident sectors based on need and free capacity."""
 
     def __init__(self) -> None:
@@ -68,9 +66,7 @@ class ResourceAllocationAgent(
         needed_kinds.append(
             (ResourceKind.FOOD_KIT, 50, 3, "Essential provisions for inundated clusters.")
         )
-        needed_kinds.append(
-            (ResourceKind.WATER_TANKER, 2, 3, "Potable drinking water supply.")
-        )
+        needed_kinds.append((ResourceKind.WATER_TANKER, 2, 3, "Potable drinking water supply."))
 
         for kind, req_qty, prio, rat in needed_kinds:
             matching = [

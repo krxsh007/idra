@@ -104,24 +104,28 @@ class DisasterAssessmentAgent(BaseAgent[AssessmentInput, AssessmentOutput]):
 
             # Untrusted citizen body is fenced
             fenced_body = fence_untrusted_input(r.body, label=f"report_{r.id}")
-            reports_list.append({
-                "id": str(r.id),
-                "source": r.source.value,
-                "location": {"lat": r.location.lat, "lon": r.location.lon},
-                "casualties_reported": r.casualties_reported,
-                "people_affected": r.people_affected,
-                "content": fenced_body,
-            })
+            reports_list.append(
+                {
+                    "id": str(r.id),
+                    "source": r.source.value,
+                    "location": {"lat": r.location.lat, "lon": r.location.lon},
+                    "casualties_reported": r.casualties_reported,
+                    "people_affected": r.people_affected,
+                    "content": fenced_body,
+                }
+            )
         reports_json = json.dumps(reports_list, indent=2)
 
         hazards_list = []
         for hz in input_data.hazard_zones:
-            hazards_list.append({
-                "id": str(hz.id),
-                "label": hz.label,
-                "severity": hz.severity.value,
-                "is_impassable": hz.is_impassable,
-            })
+            hazards_list.append(
+                {
+                    "id": str(hz.id),
+                    "label": hz.label,
+                    "severity": hz.severity.value,
+                    "is_impassable": hz.is_impassable,
+                }
+            )
         hazards_json = json.dumps(hazards_list, indent=2)
         weather_json = json.dumps(input_data.weather_context or {}, indent=2)
 
@@ -152,9 +156,7 @@ class DisasterAssessmentAgent(BaseAgent[AssessmentInput, AssessmentOutput]):
             log.warning("forbidden_language_detected", violations=forbidden_violations)
 
         # B. Clamp Rule: estimated_people_affected <= 10 * sum(reported people_affected)
-        max_allowed_estimate = (
-            10 * sum_reported_affected if sum_reported_affected > 0 else 500
-        )
+        max_allowed_estimate = 10 * sum_reported_affected if sum_reported_affected > 0 else 500
         if output.estimated_people_affected > max_allowed_estimate:
             log.warning(
                 "clamping_estimated_people_affected",

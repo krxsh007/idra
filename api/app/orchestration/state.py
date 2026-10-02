@@ -35,6 +35,10 @@ class OrchestratorState(TypedDict, total=False):
     resources_output: dict[str, Any] | None
     resources_status: AgentStatus
 
+    # Routing
+    routing_output: dict[str, Any] | None
+    routing_status: AgentStatus
+
     # Flags & Control
     needs_human_review: bool
     is_terminal: bool

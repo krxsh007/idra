@@ -46,9 +46,7 @@ async def trigger_event_run(
 
     # Re-fetch with loaded outputs
     stmt = (
-        select(AgentRun)
-        .options(selectinload(AgentRun.outputs))
-        .where(AgentRun.id == run_record.id)
+        select(AgentRun).options(selectinload(AgentRun.outputs)).where(AgentRun.id == run_record.id)
     )
     res = await db.execute(stmt)
     full_run = res.scalar_one()
@@ -98,11 +96,7 @@ async def get_run_detail(
     run_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    stmt = (
-        select(AgentRun)
-        .options(selectinload(AgentRun.outputs))
-        .where(AgentRun.id == run_id)
-    )
+    stmt = select(AgentRun).options(selectinload(AgentRun.outputs)).where(AgentRun.id == run_id)
     res = await db.execute(stmt)
     run_record = res.scalar_one_or_none()
     if not run_record:

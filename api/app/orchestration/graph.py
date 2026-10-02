@@ -12,13 +12,15 @@ from app.agents.assessment import DisasterAssessmentAgent
 from app.agents.base import AgentFailure, RunContext
 from app.agents.facilities import FacilityRecommendationAgent
 from app.agents.resources import ResourceAllocationAgent
+from app.agents.routing import RoutingAgent
 from app.core.config import settings
 from app.db.models.enums import AgentName, AgentStatus
 from app.llm.client import LLMClient
 from app.orchestration.state import AgentExecutionRecord, OrchestratorState
 from app.schemas.agents.assessment import AssessmentInput
-from app.schemas.agents.facilities import FacilityRecommendationInput
+from app.schemas.agents.facilities import FacilityCandidate, FacilityRecommendationInput
 from app.schemas.agents.resources import ResourceAllocationInput
+from app.schemas.agents.routing import RoutingInput
 from app.schemas.events import EpicenterPoint, EventResponse
 from app.schemas.hazards import GeoJSONPolygon, HazardZoneResponse
 from app.schemas.reports import ReportResponse
@@ -28,6 +30,7 @@ logger = structlog.get_logger(__name__)
 assessment_agent = DisasterAssessmentAgent()
 facility_agent = FacilityRecommendationAgent()
 resource_agent = ResourceAllocationAgent()
+routing_agent = RoutingAgent()
 
 
 def parse_state_into_assessment_input(state: OrchestratorState) -> AssessmentInput:
@@ -37,9 +40,7 @@ def parse_state_into_assessment_input(state: OrchestratorState) -> AssessmentInp
         name=e_dict["name"],
         disaster_type=e_dict["disaster_type"],
         status=e_dict["status"],
-        epicenter=EpicenterPoint(
-            lon=e_dict["epicenter"]["lon"], lat=e_dict["epicenter"]["lat"]
-        ),
+        epicenter=EpicenterPoint(lon=e_dict["epicenter"]["lon"], lat=e_dict["epicenter"]["lat"]),
         radius_m=e_dict["radius_m"],
         declared_at=e_dict["declared_at"],
         description=e_dict.get("description"),
@@ -54,9 +55,7 @@ def parse_state_into_assessment_input(state: OrchestratorState) -> AssessmentInp
                 event_id=uuid.UUID(r["event_id"]) if r.get("event_id") else None,
                 source=r["source"],
                 body=r["body"],
-                location=EpicenterPoint(
-                    lon=r["location"]["lon"], lat=r["location"]["lat"]
-                ),
+                location=EpicenterPoint(lon=r["location"]["lon"], lat=r["location"]["lat"]),
                 casualties_reported=r.get("casualties_reported", False),
                 people_affected=r.get("people_affected"),
                 data_provenance=r["data_provenance"],
@@ -74,9 +73,7 @@ def parse_state_into_assessment_input(state: OrchestratorState) -> AssessmentInp
                 label=h["label"],
                 hazard_type=h["hazard_type"],
                 severity=h["severity"],
-                geometry=GeoJSONPolygon(
-                    type="Polygon", coordinates=h["geometry"]["coordinates"]
-                ),
+                geometry=GeoJSONPolygon(type="Polygon", coordinates=h["geometry"]["coordinates"]),
                 is_impassable=h.get("is_impassable", False),
                 active_from=h["active_from"],
                 created_at=h["created_at"],
@@ -187,28 +184,32 @@ def create_orchestrator_graph(
         existing_outputs = list(state.get("outputs", []))
 
         if isinstance(result, AgentFailure):
-            existing_outputs.append({
-                "agent": AgentName.HOSPITAL_RECOMMENDATION.value,
-                "status": result.status,
-                "payload": None,
-                "latency_ms": latency_ms,
-                "error_code": result.code,
-                "error_message": result.message,
-            })
+            existing_outputs.append(
+                {
+                    "agent": AgentName.HOSPITAL_RECOMMENDATION.value,
+                    "status": result.status,
+                    "payload": None,
+                    "latency_ms": latency_ms,
+                    "error_code": result.code,
+                    "error_message": result.message,
+                }
+            )
             return {
                 "facilities_output": None,
                 "facilities_status": result.status,
                 "outputs": existing_outputs,
             }
 
-        existing_outputs.append({
-            "agent": AgentName.HOSPITAL_RECOMMENDATION.value,
-            "status": AgentStatus.SUCCESS,
-            "payload": result.model_dump(mode="json"),
-            "latency_ms": latency_ms,
-            "error_code": None,
-            "error_message": None,
-        })
+        existing_outputs.append(
+            {
+                "agent": AgentName.HOSPITAL_RECOMMENDATION.value,
+                "status": AgentStatus.SUCCESS,
+                "payload": result.model_dump(mode="json"),
+                "latency_ms": latency_ms,
+                "error_code": None,
+                "error_message": None,
+            }
+        )
         return {
             "facilities_output": result.model_dump(mode="json"),
             "facilities_status": AgentStatus.SUCCESS,
@@ -247,31 +248,104 @@ def create_orchestrator_graph(
         existing_outputs = list(state.get("outputs", []))
 
         if isinstance(result, AgentFailure):
-            existing_outputs.append({
-                "agent": AgentName.RESOURCE_COORDINATION.value,
-                "status": result.status,
-                "payload": None,
-                "latency_ms": latency_ms,
-                "error_code": result.code,
-                "error_message": result.message,
-            })
+            existing_outputs.append(
+                {
+                    "agent": AgentName.RESOURCE_COORDINATION.value,
+                    "status": result.status,
+                    "payload": None,
+                    "latency_ms": latency_ms,
+                    "error_code": result.code,
+                    "error_message": result.message,
+                }
+            )
             return {
                 "resources_output": None,
                 "resources_status": result.status,
                 "outputs": existing_outputs,
             }
 
-        existing_outputs.append({
-            "agent": AgentName.RESOURCE_COORDINATION.value,
-            "status": AgentStatus.SUCCESS,
-            "payload": result.model_dump(mode="json"),
-            "latency_ms": latency_ms,
-            "error_code": None,
-            "error_message": None,
-        })
+        existing_outputs.append(
+            {
+                "agent": AgentName.RESOURCE_COORDINATION.value,
+                "status": AgentStatus.SUCCESS,
+                "payload": result.model_dump(mode="json"),
+                "latency_ms": latency_ms,
+                "error_code": None,
+                "error_message": None,
+            }
+        )
         return {
             "resources_output": result.model_dump(mode="json"),
             "resources_status": AgentStatus.SUCCESS,
+            "outputs": existing_outputs,
+        }
+
+    async def routing_node(state: OrchestratorState) -> dict[str, Any]:
+        start = time.perf_counter()
+        event_id_val = uuid.UUID(state["event_id"])
+        run_id_val = uuid.UUID(state["run_id"]) if "run_id" in state else uuid.uuid4()
+
+        ctx = RunContext(
+            event_id=event_id_val,
+            run_id=run_id_val,
+            agent_name=AgentName.EVACUATION,
+            db=db,
+            llm=llm,
+            timeout_s=float(settings.AGENT_TIMEOUT_EVACUATION_S),
+        )
+
+        assessment_in = parse_state_into_assessment_input(state)
+        fac_out = state.get("facilities_output") or {}
+
+        shelters = [
+            FacilityCandidate.model_validate(s) for s in fac_out.get("recommended_shelters", [])
+        ]
+        hospitals = [
+            FacilityCandidate.model_validate(h) for h in fac_out.get("recommended_hospitals", [])
+        ]
+
+        routing_input = RoutingInput(
+            event=assessment_in.event,
+            reports=assessment_in.reports,
+            recommended_shelters=shelters,
+            recommended_hospitals=hospitals,
+            hazard_zones=assessment_in.hazard_zones,
+        )
+
+        result = await routing_agent.run(ctx, routing_input)
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        existing_outputs = list(state.get("outputs", []))
+
+        if isinstance(result, AgentFailure):
+            existing_outputs.append(
+                {
+                    "agent": AgentName.EVACUATION.value,
+                    "status": result.status,
+                    "payload": None,
+                    "latency_ms": latency_ms,
+                    "error_code": result.code,
+                    "error_message": result.message,
+                }
+            )
+            return {
+                "routing_output": None,
+                "routing_status": result.status,
+                "outputs": existing_outputs,
+            }
+
+        existing_outputs.append(
+            {
+                "agent": AgentName.EVACUATION.value,
+                "status": AgentStatus.SUCCESS,
+                "payload": result.model_dump(mode="json"),
+                "latency_ms": latency_ms,
+                "error_code": None,
+                "error_message": None,
+            }
+        )
+        return {
+            "routing_output": result.model_dump(mode="json"),
+            "routing_status": AgentStatus.SUCCESS,
             "outputs": existing_outputs,
         }
 
@@ -285,6 +359,7 @@ def create_orchestrator_graph(
     workflow.add_node("assessment", assessment_node)
     workflow.add_node("facilities", facilities_node)
     workflow.add_node("resources", resources_node)
+    workflow.add_node("routing", routing_node)
 
     workflow.set_entry_point("assessment")
     workflow.add_conditional_edges(
@@ -296,6 +371,7 @@ def create_orchestrator_graph(
         },
     )
     workflow.add_edge("facilities", "resources")
-    workflow.add_edge("resources", END)
+    workflow.add_edge("resources", "routing")
+    workflow.add_edge("routing", END)
 
     return workflow.compile()

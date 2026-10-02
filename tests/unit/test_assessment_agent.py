@@ -84,13 +84,15 @@ def create_sample_hazards(event_id: uuid.UUID) -> list[HazardZoneResponse]:
             hazard_type=DisasterType.FLOOD,
             severity=SeverityLevel.SEVERE,
             geometry=GeoJSONPolygon(
-                coordinates=[[
-                    [80.21, 12.97],
-                    [80.23, 12.97],
-                    [80.23, 12.99],
-                    [80.21, 12.99],
-                    [80.21, 12.97],
-                ]]
+                coordinates=[
+                    [
+                        [80.21, 12.97],
+                        [80.23, 12.97],
+                        [80.23, 12.99],
+                        [80.21, 12.99],
+                        [80.21, 12.97],
+                    ]
+                ]
             ),
             is_impassable=True,
             active_from=datetime.now(UTC),

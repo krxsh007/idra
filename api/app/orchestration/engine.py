@@ -6,7 +6,7 @@ import uuid
 from typing import Any
 
 import structlog
-from geoalchemy2.functions import ST_MakePoint, ST_SetSRID
+from geoalchemy2.functions import ST_GeomFromText, ST_MakePoint, ST_SetSRID
 from geoalchemy2.shape import to_shape
 from shapely.geometry import mapping
 from sqlalchemy import select
@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.db.models.enums import AgentName, AgentStatus, RunStatus, VerificationStatus
 from app.db.models.events import DisasterEvent, HazardZone, IncidentReport
-from app.db.models.runs import AgentOutput, AgentRun, Recommendation, ResourceAllocation
+from app.db.models.runs import AgentOutput, AgentRun, Recommendation, ResourceAllocation, Route
 from app.llm.client import LLMClient
 from app.orchestration.graph import create_orchestrator_graph
 from app.orchestration.state import OrchestratorState
@@ -222,7 +222,37 @@ class OrchestrationEngine:
                 )
                 db.add(alloc_db)
 
-        # 8. Update Run metadata
+        # 8. Persist Evacuation Routes
+        rout_out = final_state.get("routing_output")
+        if rout_out and isinstance(rout_out, dict):
+            for route_item in rout_out.get("routes", []):
+                coords = route_item.get("geometry", {}).get("coordinates", [])
+                if len(coords) >= 2:
+                    wkt_linestring = (
+                        f"SRID=4326;LINESTRING({', '.join(f'{c[0]} {c[1]}' for c in coords)})"
+                    )
+                    orig = route_item.get("origin", {})
+                    dest = route_item.get("destination", {})
+                    o_lon, o_lat = orig.get("lon", 80.2), orig.get("lat", 13.0)
+                    d_lon, d_lat = dest.get("lon", 80.2), dest.get("lat", 13.0)
+                    fac_id_raw = route_item.get("destination_facility_id")
+                    route_db = Route(
+                        run_id=agent_run.id,
+                        event_id=event_id,
+                        origin=ST_SetSRID(ST_MakePoint(o_lon, o_lat), 4326),
+                        destination=ST_SetSRID(ST_MakePoint(d_lon, d_lat), 4326),
+                        destination_facility_id=uuid.UUID(fac_id_raw) if fac_id_raw else None,
+                        path_geom=ST_GeomFromText(wkt_linestring),
+                        distance_m=route_item.get("distance_m", 0.0),
+                        duration_s=route_item.get("duration_s", 0.0),
+                        hazard_avoided=route_item.get("hazard_avoided", True),
+                        traverses_hazard=route_item.get("traverses_hazard", False),
+                        blocked_edge_count=route_item.get("blocked_edges_avoided", 0),
+                        algorithm=route_item.get("algorithm", "dijkstra_hazard_penalty"),
+                    )
+                    db.add(route_db)
+
+        # 9. Update Run metadata
         total_latency = int((time.perf_counter() - start_time) * 1000)
         agent_run.total_latency_ms = total_latency
         agent_run.needs_human_review = final_state.get("needs_human_review", False)

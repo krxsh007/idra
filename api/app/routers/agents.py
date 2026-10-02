@@ -9,6 +9,7 @@ from app.agents.assessment import DisasterAssessmentAgent
 from app.agents.base import AgentFailure, RunContext
 from app.agents.facilities import FacilityRecommendationAgent
 from app.agents.resources import ResourceAllocationAgent
+from app.agents.routing import RoutingAgent
 from app.core.config import settings
 from app.core.security import require_responder
 from app.db.models.enums import AgentName
@@ -24,12 +25,17 @@ from app.schemas.agents.resources import (
     ResourceAllocationInput,
     ResourceAllocationOutput,
 )
+from app.schemas.agents.routing import (
+    RoutingInput,
+    RoutingOutput,
+)
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
 
 assessment_agent = DisasterAssessmentAgent()
 facility_agent = FacilityRecommendationAgent()
 resource_agent = ResourceAllocationAgent()
+routing_agent = RoutingAgent()
 
 
 @router.post(
@@ -127,6 +133,40 @@ async def run_resources_endpoint(
     )
 
     result = await resource_agent.run(ctx, input_data)
+    if isinstance(result, AgentFailure):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": result.code,
+                "message": result.message,
+                "details": result.details,
+            },
+        )
+
+    return result
+
+
+@router.post(
+    "/routing",
+    response_model=RoutingOutput,
+    status_code=status.HTTP_200_OK,
+    summary="Evaluate Evacuation & Rescue Routing Agent directly",
+)
+async def run_routing_endpoint(
+    input_data: RoutingInput,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_responder),
+) -> Any:
+    llm = get_llm_client()
+    ctx = RunContext(
+        event_id=input_data.event.id,
+        agent_name=AgentName.EVACUATION,
+        db=db,
+        llm=llm,
+        timeout_s=float(settings.AGENT_TIMEOUT_EVACUATION_S),
+    )
+
+    result = await routing_agent.run(ctx, input_data)
     if isinstance(result, AgentFailure):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

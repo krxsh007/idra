@@ -13,6 +13,7 @@ from app.core.errors import AppException, ErrorCode
 from app.core.security import require_admin, require_responder
 from app.db.models.enums import DisasterType, EventStatus
 from app.db.models.events import DisasterEvent, HazardZone, IncidentReport
+from app.db.models.runs import Route
 from app.db.models.users import User
 from app.db.session import get_db
 from app.gis.validation import point_to_wkt, validate_point_in_study_area
@@ -367,3 +368,45 @@ async def get_event_geojson(
         },
         "features": features,
     }
+
+
+@router.get(
+    "/{event_id}/routes",
+    response_model=list[dict[str, Any]],
+    status_code=status.HTTP_200_OK,
+    summary="List all computed evacuation routes for an event",
+)
+async def get_event_routes(
+    event_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    stmt = select(Route).where(Route.event_id == event_id).order_by(Route.computed_at.desc())
+    res = await db.execute(stmt)
+    routes = res.scalars().all()
+
+    items = []
+    for r in routes:
+        path_shape = to_shape(r.path_geom)
+        orig_shape = to_shape(r.origin)
+        dest_shape = to_shape(r.destination)
+        items.append(
+            {
+                "id": str(r.id),
+                "run_id": str(r.run_id) if r.run_id else None,
+                "event_id": str(r.event_id),
+                "origin": {"lon": orig_shape.x, "lat": orig_shape.y},
+                "destination": {"lon": dest_shape.x, "lat": dest_shape.y},
+                "destination_facility_id": str(r.destination_facility_id)
+                if r.destination_facility_id
+                else None,
+                "geometry": mapping(path_shape),
+                "distance_m": r.distance_m,
+                "duration_s": r.duration_s,
+                "hazard_avoided": r.hazard_avoided,
+                "traverses_hazard": r.traverses_hazard,
+                "blocked_edge_count": r.blocked_edge_count,
+                "algorithm": r.algorithm,
+                "computed_at": r.computed_at.isoformat(),
+            }
+        )
+    return items
