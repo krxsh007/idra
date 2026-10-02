@@ -27,6 +27,14 @@ class OrchestratorState(TypedDict, total=False):
     assessment_status: AgentStatus
     assessed_severity: SeverityLevel | None
 
+    # Facilities
+    facilities_output: dict[str, Any] | None
+    facilities_status: AgentStatus
+
+    # Resources
+    resources_output: dict[str, Any] | None
+    resources_status: AgentStatus
+
     # Flags & Control
     needs_human_review: bool
     is_terminal: bool

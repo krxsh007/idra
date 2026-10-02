@@ -6,15 +6,16 @@ import uuid
 from typing import Any
 
 import structlog
+from geoalchemy2.functions import ST_MakePoint, ST_SetSRID
 from geoalchemy2.shape import to_shape
 from shapely.geometry import mapping
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.models.enums import AgentName, AgentStatus, RunStatus
+from app.db.models.enums import AgentName, AgentStatus, RunStatus, VerificationStatus
 from app.db.models.events import DisasterEvent, HazardZone, IncidentReport
-from app.db.models.runs import AgentOutput, AgentRun
+from app.db.models.runs import AgentOutput, AgentRun, Recommendation, ResourceAllocation
 from app.llm.client import LLMClient
 from app.orchestration.graph import create_orchestrator_graph
 from app.orchestration.state import OrchestratorState
@@ -162,7 +163,66 @@ class OrchestrationEngine:
             )
             db.add(agent_output)
 
-        # 6. Update Run metadata
+        # 6. Persist Facility Recommendations
+        fac_out = final_state.get("facilities_output")
+        if fac_out and isinstance(fac_out, dict):
+            for hosp in fac_out.get("recommended_hospitals", []):
+                rec_h = Recommendation(
+                    run_id=agent_run.id,
+                    event_id=event_id,
+                    agent=AgentName.HOSPITAL_RECOMMENDATION,
+                    priority=1,
+                    title=f"Hospital Routing: {hosp.get('name')}",
+                    body=(
+                        f"Recommended hospital with {hosp.get('available_capacity')} beds. "
+                        f"Distance: {hosp.get('distance_m')}m."
+                    ),
+                    origin="AI_GENERATED",
+                    confidence=0.9,
+                    structured_ref={"facility_id": hosp.get("facility_id")},
+                    verification_status=VerificationStatus.PENDING,
+                )
+                db.add(rec_h)
+
+            for sh in fac_out.get("recommended_shelters", []):
+                rec_s = Recommendation(
+                    run_id=agent_run.id,
+                    event_id=event_id,
+                    agent=AgentName.SHELTER_ALLOCATION,
+                    priority=2,
+                    title=f"Evacuation Shelter: {sh.get('name')}",
+                    body=(
+                        f"Recommended shelter with {sh.get('available_capacity')} capacity. "
+                        f"Distance: {sh.get('distance_m')}m."
+                    ),
+                    origin="AI_GENERATED",
+                    confidence=0.85,
+                    structured_ref={"facility_id": sh.get("facility_id")},
+                    verification_status=VerificationStatus.PENDING,
+                )
+                db.add(rec_s)
+
+        # 7. Persist Resource Allocations
+        res_out = final_state.get("resources_output")
+        if res_out and isinstance(res_out, dict):
+            for alloc_item in res_out.get("allocations", []):
+                target_loc = alloc_item.get("target_location", {})
+                ep_shape = to_shape(event.epicenter)
+                t_lon = target_loc.get("lon", ep_shape.x)
+                t_lat = target_loc.get("lat", ep_shape.y)
+                alloc_db = ResourceAllocation(
+                    run_id=agent_run.id,
+                    resource_id=uuid.UUID(alloc_item["resource_id"]),
+                    target_zone_label=alloc_item.get("target_zone_label", "Impact Area"),
+                    target_location=ST_SetSRID(ST_MakePoint(t_lon, t_lat), 4326),
+                    quantity=alloc_item["quantity"],
+                    priority=alloc_item["priority"],
+                    rationale=alloc_item.get("rationale"),
+                    is_committed=False,
+                )
+                db.add(alloc_db)
+
+        # 8. Update Run metadata
         total_latency = int((time.perf_counter() - start_time) * 1000)
         agent_run.total_latency_ms = total_latency
         agent_run.needs_human_review = final_state.get("needs_human_review", False)
