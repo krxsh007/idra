@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     AGENT_TIMEOUT_FACILITY_S: int = 10
     AGENT_TIMEOUT_RESOURCE_S: int = 20
     AGENT_TIMEOUT_SYNTHESIS_S: int = 20
+    AGENT_TIMEOUT_CITIZEN_S: int = 15
     ASSESSMENT_CONFIDENCE_FLOOR: float = 0.5
 
     # --- reliability ---

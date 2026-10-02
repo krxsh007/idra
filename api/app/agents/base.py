@@ -32,7 +32,7 @@ class RunContext(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    event_id: uuid.UUID
+    event_id: uuid.UUID | None = None
     run_id: uuid.UUID | None = None
     agent_name: AgentName
     db: AsyncSession | None = None
@@ -55,7 +55,10 @@ class BaseAgent(ABC, Generic[InputT, OutputT]):
 
     async def run(self, ctx: RunContext, input_data: InputT) -> OutputT | AgentFailure:
         """Run agent wrapped in timeout protection and error isolation."""
-        log = logger.bind(agent=self.agent_name.value, event_id=str(ctx.event_id))
+        log = logger.bind(
+            agent=self.agent_name.value,
+            event_id=str(ctx.event_id) if ctx.event_id else None,
+        )
         log.info("agent_run_started")
 
         try:

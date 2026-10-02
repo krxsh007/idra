@@ -69,3 +69,12 @@ async def limit_public_reports(request: Request) -> None:
         key=f"reports:{client_ip}",
         requests_per_minute=settings.RATE_LIMIT_PUBLIC_PER_MIN,
     )
+
+
+async def limit_public_assistant(request: Request) -> None:
+    """Dependency enforcing public rate limit on citizen assistance queries."""
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    rate_limiter.check(
+        key=f"assistant:{client_ip}",
+        requests_per_minute=settings.RATE_LIMIT_PUBLIC_PER_MIN,
+    )
