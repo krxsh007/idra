@@ -1,4 +1,3 @@
-import os
 from typing import Any
 
 from fastapi import APIRouter
@@ -39,22 +38,31 @@ async def deep_health_check() -> DeepHealthResponse:
     components: dict[str, ComponentStatus] = {}
     overall_ok = True
 
+    db_ok = bool(settings.DATABASE_URL)
+    if not db_ok:
+        overall_ok = False
     components["database"] = ComponentStatus(
-        status="ok" if settings.DATABASE_URL else "unconfigured",
-        details={"url_configured": bool(settings.DATABASE_URL)},
+        status="ok" if db_ok else "unavailable",
+        details={"url_configured": db_ok},
     )
 
     from app.gis.graph import road_graph_manager
 
-    if not road_graph_manager.is_loaded:
+    if not road_graph_manager.is_loaded and not road_graph_manager._unavailable:
         try:
             road_graph_manager.load_graph()
         except Exception:
             pass
 
     graph_loaded = road_graph_manager.is_loaded
+    if road_graph_manager._unavailable or not graph_loaded:
+        overall_ok = False
+        rg_status = "unavailable"
+    else:
+        rg_status = "ok"
+
     components["road_graph"] = ComponentStatus(
-        status="ok" if graph_loaded or os.path.exists(settings.ROAD_GRAPH_PATH) else "unconfigured",
+        status=rg_status,
         details={
             "path": settings.ROAD_GRAPH_PATH,
             "loaded": graph_loaded,

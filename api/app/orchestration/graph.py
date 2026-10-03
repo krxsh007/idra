@@ -132,6 +132,29 @@ def create_orchestrator_graph(
                     "error_message": result.message,
                 }
             )
+            if result.code == "LLM_UNAVAILABLE":
+                has_cas = any(r.casualties_reported for r in assessment_in.reports)
+                est_pop = sum(r.people_affected or 0 for r in assessment_in.reports)
+                fallback_assessment = {
+                    "severity": SeverityLevel.HIGH.value,
+                    "confidence": 0.5,
+                    "affected_area_summary": (
+                        "Degraded deterministic telemetry baseline (LLM unavailable)."
+                    ),
+                    "estimated_people_affected": max(10, est_pop),
+                    "casualties_reported": has_cas,
+                    "evacuation_recommended": True,
+                    "key_factors": ["LLM unavailable; using deterministic report baseline"],
+                    "citations": [],
+                }
+                return {
+                    "assessment_output": fallback_assessment,
+                    "assessment_status": result.status,
+                    "assessed_severity": SeverityLevel.HIGH,
+                    "needs_human_review": True,
+                    "is_terminal": False,
+                    "outputs": existing_outputs,
+                }
             return {
                 "assessment_output": None,
                 "assessment_status": result.status,
@@ -511,9 +534,7 @@ def create_orchestrator_graph(
         }
 
     def check_assessment_branch(state: OrchestratorState) -> str:
-        if state.get("assessment_status") != AgentStatus.SUCCESS:
-            return END
-        if state.get("needs_human_review", False):
+        if state.get("is_terminal", False):
             return END
         return "planning"
 

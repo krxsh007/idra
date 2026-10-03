@@ -238,9 +238,13 @@ class ResourceAllocationAgent(BaseAgent[ResourceAllocationInput, ResourceAllocat
         requirements.sort(key=lambda r: r[2])
 
         # 4. Greedy Allocation with depot distance sorting and run-local ledger
+        free_ledger = {r.id: r.quantity_free for r in available_resources}
+
         for kind, req_qty, prio, rat, z_label, target_loc in requirements:
             matching = [
-                r for r in available_resources if r.resource_kind == kind and r.quantity_free > 0
+                r
+                for r in available_resources
+                if r.resource_kind == kind and free_ledger.get(r.id, 0) > 0
             ]
 
             # Calculate depot distance for each matching resource
@@ -259,10 +263,11 @@ class ResourceAllocationAgent(BaseAgent[ResourceAllocationInput, ResourceAllocat
             for depot_res in matching:
                 if remaining_req <= 0:
                     break
-                if depot_res.quantity_free <= 0:
+                avail_free = free_ledger.get(depot_res.id, 0)
+                if avail_free <= 0:
                     continue
 
-                alloc_qty = min(remaining_req, depot_res.quantity_free)
+                alloc_qty = min(remaining_req, avail_free)
                 dist_m = get_depot_dist(depot_res)
 
                 allocations.append(
@@ -280,7 +285,7 @@ class ResourceAllocationAgent(BaseAgent[ResourceAllocationInput, ResourceAllocat
                     )
                 )
 
-                depot_res.quantity_free -= alloc_qty
+                free_ledger[depot_res.id] = avail_free - alloc_qty
                 allocated_for_req += alloc_qty
                 remaining_req -= alloc_qty
 

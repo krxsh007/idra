@@ -81,10 +81,17 @@ class BaseAgent(ABC, Generic[InputT, OutputT]):
             )
         except Exception as e:
             log.exception("agent_run_unhandled_exception", error=str(e))
+            err_str = str(e)
+            if "LLM_UNAVAILABLE" in err_str or isinstance(e, ConnectionError):
+                code = "LLM_UNAVAILABLE"
+            elif "ValidationError" in type(e).__name__ or "validation" in err_str.lower():
+                code = "LLM_INVALID_OUTPUT"
+            else:
+                code = "AGENT_UNHANDLED_EXCEPTION"
             return AgentFailure(
                 status=AgentStatus.FAILED,
-                code="AGENT_UNHANDLED_EXCEPTION",
-                message=f"Unhandled exception in agent '{self.agent_name.value}': {e}",
+                code=code,
+                message=f"Agent '{self.agent_name.value}' failed ({code}): {e}",
                 details={"exception_type": type(e).__name__},
             )
 
@@ -104,7 +111,11 @@ class BaseAgent(ABC, Generic[InputT, OutputT]):
                 temperature=temperature,
             )
         except Exception as first_err:
-            if ctx.max_repair_retries < 1:
+            if (
+                ctx.max_repair_retries < 1
+                or "LLM_UNAVAILABLE" in str(first_err)
+                or isinstance(first_err, ConnectionError)
+            ):
                 raise
 
             repair_prompt = (

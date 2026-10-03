@@ -45,3 +45,8 @@ class RunListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class TriggerRunRequest(BaseModel):
+    event_id: uuid.UUID
+    force: bool = False

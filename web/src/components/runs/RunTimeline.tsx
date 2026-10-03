@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Play, CheckCircle2, Clock, XCircle, Loader2, Cpu } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -10,8 +10,8 @@ interface RunTimelineProps {
 const AGENT_ORDER = [
   { key: 'ASSESSMENT', label: '1. Disaster Assessment', tier: 'Tier A (LLM + RAG)' },
   { key: 'RESCUE_PLANNING', label: '2. Rescue Planning', tier: 'Tier A (LLM + PostGIS)' },
-  { key: 'FACILITY_MATCHER', label: '3. Facility Matching', tier: 'Tier B (PostGIS Solver)' },
-  { key: 'EVACUATION_ROUTING', label: '4. Evacuation Routing', tier: 'Tier B (A* Router)' },
+  { key: 'HOSPITAL_RECOMMENDATION', label: '3. Facility Matching', tier: 'Tier B (PostGIS Solver)' },
+  { key: 'EVACUATION', label: '4. Evacuation Routing', tier: 'Tier B (A* Router)' },
   { key: 'RESOURCE_COORDINATION', label: '5. Resource Ledger', tier: 'Tier B (Deterministic)' },
   { key: 'CONFLICT_RESOLVER', label: '6. Conflict Resolver', tier: 'Tier B (Solver)' },
   { key: 'SYNTHESIS', label: '7. Briefing Synthesis', tier: 'Tier A (LLM Synthesis)' },
@@ -19,6 +19,7 @@ const AGENT_ORDER = [
 
 export const RunTimeline: React.FC<RunTimelineProps> = ({ eventId }) => {
   const queryClient = useQueryClient();
+  const [streamedStatuses, setStreamedStatuses] = useState<Record<string, string>>({});
 
   const { data: runsData } = useQuery({
     queryKey: ['runs', eventId],
@@ -29,18 +30,51 @@ export const RunTimeline: React.FC<RunTimelineProps> = ({ eventId }) => {
 
   const latestRun = runsData?.items?.[0];
 
+  // Subscribe to Server-Sent Events (SSE) progress stream for active/latest run
+  useEffect(() => {
+    if (!latestRun?.id || typeof EventSource === 'undefined') return;
+
+    const es = new EventSource(`/api/v1/runs/${latestRun.id}/stream`);
+    es.onmessage = (evt) => {
+      try {
+        const payload = JSON.parse(evt.data);
+        if (payload.event === 'agent_completed' && payload.agent) {
+          setStreamedStatuses((prev) => ({
+            ...prev,
+            [payload.agent]: payload.status,
+          }));
+        } else if (payload.event === 'run_completed') {
+          queryClient.invalidateQueries({ queryKey: ['runs', eventId] });
+          queryClient.invalidateQueries({ queryKey: ['recommendations', eventId] });
+          es.close();
+        }
+      } catch {
+        // Ignore malformed SSE lines
+      }
+    };
+    es.onerror = () => {
+      es.close();
+    };
+
+    return () => {
+      es.close();
+    };
+  }, [latestRun?.id, eventId, queryClient]);
+
   const triggerMutation = useMutation({
     mutationFn: () => {
       if (!eventId) throw new Error('No event selected');
       return api.triggerRun(eventId, true);
     },
     onSuccess: () => {
+      setStreamedStatuses({});
       queryClient.invalidateQueries({ queryKey: ['runs', eventId] });
       queryClient.invalidateQueries({ queryKey: ['recommendations', eventId] });
     },
   });
 
   const getAgentStatus = (agentKey: string) => {
+    if (streamedStatuses[agentKey]) return streamedStatuses[agentKey];
     if (!latestRun) return 'PENDING';
     const output = latestRun.outputs.find((o) => o.agent === agentKey || o.agent.includes(agentKey));
     if (output) return output.status;
@@ -110,7 +144,7 @@ export const RunTimeline: React.FC<RunTimelineProps> = ({ eventId }) => {
               </div>
 
               <div>
-                {status === 'COMPLETED' && (
+                {(status === 'COMPLETED' || status === 'SUCCESS') && (
                   <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
                     <CheckCircle2 className="w-4 h-4" /> Done
                   </span>
@@ -120,9 +154,9 @@ export const RunTimeline: React.FC<RunTimelineProps> = ({ eventId }) => {
                     <Loader2 className="w-4 h-4 animate-spin" /> Running
                   </span>
                 )}
-                {status === 'FAILED' && (
+                {(status === 'FAILED' || status === 'TIMEOUT' || status === 'INSUFFICIENT_EVIDENCE') && (
                   <span className="flex items-center gap-1 text-[11px] text-rose-400 font-medium">
-                    <XCircle className="w-4 h-4" /> Failed
+                    <XCircle className="w-4 h-4" /> {status === 'TIMEOUT' ? 'Timeout' : 'Failed'}
                   </span>
                 )}
                 {status === 'PENDING' && (

@@ -5,14 +5,17 @@ import time
 import uuid
 from typing import Any
 
+import httpx
 import structlog
 from geoalchemy2.functions import ST_GeomFromText, ST_MakePoint, ST_SetSRID
 from geoalchemy2.shape import to_shape
 from shapely.geometry import mapping
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.errors import AppException, ErrorCode
 from app.db.models.enums import AgentName, AgentStatus, RunStatus, VerificationStatus
 from app.db.models.events import DisasterEvent, HazardZone, IncidentReport
 from app.db.models.runs import (
@@ -28,6 +31,30 @@ from app.orchestration.graph import create_orchestrator_graph
 from app.orchestration.state import OrchestratorState
 
 logger = structlog.get_logger(__name__)
+
+
+async def fetch_weather_context(lon: float, lat: float) -> dict[str, Any] | None:
+    """Fetch current weather from Open-Meteo with strict 3s timeout; return None on failure."""
+    if not settings.WEATHER_ENABLED:
+        return None
+    try:
+        url = (
+            f"{settings.OPEN_METEO_BASE_URL}/forecast"
+            f"?latitude={lat}&longitude={lon}&current_weather=true"
+        )
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+            cw = data.get("current_weather", {})
+            return {
+                "windspeed_kph": cw.get("windspeed", 0),
+                "temperature_c": cw.get("temperature", 0),
+                "weathercode": cw.get("weathercode", 0),
+            }
+    except Exception as e:
+        logger.warning("open_meteo_unavailable", error=str(e))
+        return None
 
 
 def serialize_event(event: DisasterEvent) -> dict[str, Any]:
@@ -80,6 +107,12 @@ def serialize_hazard(hazard: HazardZone) -> dict[str, Any]:
 class OrchestrationEngine:
     """Coordinates multi-agent state machine execution, database persistence, and timeout limits."""
 
+    def __init__(self) -> None:
+        self._run_events: dict[str, list[dict[str, Any]]] = {}
+
+    def get_run_events(self, run_id: str) -> list[dict[str, Any]]:
+        return list(self._run_events.get(run_id, []))
+
     async def run_pipeline(
         self,
         event_id: uuid.UUID,
@@ -91,10 +124,18 @@ class OrchestrationEngine:
         log.info("pipeline_started")
         start_time = time.perf_counter()
 
-        # 1. Fetch domain context
-        stmt_ev = select(DisasterEvent).where(DisasterEvent.id == event_id)
-        res_ev = await db.execute(stmt_ev)
-        event = res_ev.scalar_one_or_none()
+        try:
+            # 1. Fetch domain context
+            stmt_ev = select(DisasterEvent).where(DisasterEvent.id == event_id)
+            res_ev = await db.execute(stmt_ev)
+            event = res_ev.scalar_one_or_none()
+        except (OperationalError, SQLAlchemyError, OSError, ConnectionError) as db_err:
+            raise AppException(
+                code=ErrorCode.DB_UNAVAILABLE,
+                message=f"Database unavailable: {db_err}",
+                status_code=503,
+            ) from db_err
+
         if not event:
             raise ValueError(f"DisasterEvent {event_id} not found")
 
@@ -115,17 +156,32 @@ class OrchestrationEngine:
             llm_model=settings.GEMINI_MODEL,
         )
         db.add(agent_run)
-        await db.commit()
-        await db.refresh(agent_run)
+        try:
+            await db.commit()
+            await db.refresh(agent_run)
+        except (OperationalError, SQLAlchemyError, OSError, ConnectionError) as db_err:
+            raise AppException(
+                code=ErrorCode.DB_UNAVAILABLE,
+                message=f"Database unavailable during run initialization: {db_err}",
+                status_code=503,
+            ) from db_err
+
+        run_id_str = str(agent_run.id)
+        self._run_events[run_id_str] = [
+            {"event": "run_started", "run_id": run_id_str, "status": "RUNNING"}
+        ]
+
+        ep_shape = to_shape(event.epicenter)
+        weather_ctx = await fetch_weather_context(ep_shape.x, ep_shape.y)
 
         # 3. Setup Initial State
         initial_state: OrchestratorState = {
-            "run_id": str(agent_run.id),
+            "run_id": run_id_str,
             "event_id": str(event_id),
             "event_data": serialize_event(event),
             "reports_data": [serialize_report(r) for r in reports],
             "hazards_data": [serialize_hazard(h) for h in hazards],
-            "weather_data": None,
+            "weather_data": weather_ctx,
             "outputs": [],
             "errors": [],
             "needs_human_review": False,
@@ -143,17 +199,39 @@ class OrchestrationEngine:
             )
         except TimeoutError:
             log.error("pipeline_total_timeout", timeout_s=settings.RUN_TOTAL_TIMEOUT_S)
-            agent_run.status = RunStatus.FAILED
+            agent_run.status = RunStatus.PARTIAL
             agent_run.error_code = "PIPELINE_TOTAL_TIMEOUT"
             agent_run.total_latency_ms = int((time.perf_counter() - start_time) * 1000)
             await db.commit()
+            self._run_events[run_id_str].append(
+                {
+                    "event": "run_completed",
+                    "run_id": run_id_str,
+                    "status": "PARTIAL",
+                    "error_code": "PIPELINE_TOTAL_TIMEOUT",
+                }
+            )
             return agent_run
+        except (OperationalError, SQLAlchemyError, OSError, ConnectionError) as db_err:
+            raise AppException(
+                code=ErrorCode.DB_UNAVAILABLE,
+                message=f"Database connection lost mid-run: {db_err}",
+                status_code=503,
+            ) from db_err
         except Exception as e:
             log.exception("pipeline_failed", error=str(e))
             agent_run.status = RunStatus.FAILED
             agent_run.error_code = "PIPELINE_EXECUTION_ERROR"
             agent_run.total_latency_ms = int((time.perf_counter() - start_time) * 1000)
             await db.commit()
+            self._run_events[run_id_str].append(
+                {
+                    "event": "run_completed",
+                    "run_id": run_id_str,
+                    "status": "FAILED",
+                    "error_code": "PIPELINE_EXECUTION_ERROR",
+                }
+            )
             return agent_run
 
         # 5. Persist AgentOutputs
@@ -169,6 +247,20 @@ class OrchestrationEngine:
                 error_message=rec.get("error_message"),
             )
             db.add(agent_output)
+            self._run_events[run_id_str].append(
+                {
+                    "event": "agent_completed",
+                    "run_id": run_id_str,
+                    "agent": rec["agent"],
+                    "status": (
+                        rec["status"].value
+                        if hasattr(rec["status"], "value")
+                        else str(rec["status"])
+                    ),
+                    "latency_ms": rec.get("latency_ms"),
+                    "error_code": rec.get("error_code"),
+                }
+            )
 
         # 6. Persist Prioritized Recommendations & Citations from Synthesis
         synth_out = final_state.get("synthesis_output")
@@ -316,8 +408,11 @@ class OrchestrationEngine:
         has_failed = any(
             rec.get("status") in (AgentStatus.FAILED, AgentStatus.TIMEOUT) for rec in raw_outputs
         )
+        has_succeeded = any(rec.get("status") == AgentStatus.SUCCESS for rec in raw_outputs)
 
         if has_insufficient or (agent_run.needs_human_review and not has_failed):
+            agent_run.status = RunStatus.PARTIAL
+        elif has_failed and has_succeeded:
             agent_run.status = RunStatus.PARTIAL
         elif has_failed:
             agent_run.status = RunStatus.FAILED
@@ -326,6 +421,14 @@ class OrchestrationEngine:
 
         await db.commit()
         await db.refresh(agent_run)
+        self._run_events[run_id_str].append(
+            {
+                "event": "run_completed",
+                "run_id": run_id_str,
+                "status": agent_run.status.value,
+                "total_latency_ms": total_latency,
+            }
+        )
         log.info("pipeline_completed", status=agent_run.status.value, latency_ms=total_latency)
         return agent_run
 

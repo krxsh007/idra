@@ -214,8 +214,13 @@ async def run_routing_endpoint(
 
     result = await routing_agent.run(ctx, input_data)
     if isinstance(result, AgentFailure):
+        status_code = (
+            status.HTTP_503_SERVICE_UNAVAILABLE
+            if result.code == "ROAD_GRAPH_UNAVAILABLE"
+            else status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status_code,
             detail={
                 "code": result.code,
                 "message": result.message,

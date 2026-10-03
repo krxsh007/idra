@@ -25,6 +25,12 @@ migrate:
 
 seed:
 	PYTHONPATH=api:. .venv/bin/python scripts/seed_users.py
+	PYTHONPATH=api:. .venv/bin/python scripts/load_facilities.py
+	PYTHONPATH=api:. .venv/bin/python scripts/load_resources.py
+	PYTHONPATH=api:. .venv/bin/python scripts/seed_scenarios.py
+
+smoke:
+	bash scripts/smoke.sh
 
 types:
 	PYTHONPATH=api:. .venv/bin/python scripts/export_openapi.py

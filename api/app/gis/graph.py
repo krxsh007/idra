@@ -15,6 +15,7 @@ class RoadGraphManager:
     _instance: RoadGraphManager | None = None
     _graph: nx.DiGraph | None = None
     _manifest: dict[str, Any] | None = None
+    _unavailable: bool = False
 
     @classmethod
     def get_instance(cls) -> RoadGraphManager:
@@ -22,8 +23,13 @@ class RoadGraphManager:
             cls._instance = cls()
         return cls._instance
 
+    def set_unavailable(self, unavailable: bool) -> None:
+        self._unavailable = unavailable
+
     def load_graph(self) -> None:
         """Load the road network graph and validate its manifest bounding box."""
+        if self._unavailable:
+            raise RuntimeError("ROAD_GRAPH_UNAVAILABLE")
         artifacts_dir = os.path.join(os.path.dirname(__file__), "../../../artifacts")
         pkl_path = os.path.join(artifacts_dir, "road_graph.pkl")
         manifest_path = os.path.join(artifacts_dir, "road_graph_manifest.json")
@@ -80,6 +86,8 @@ class RoadGraphManager:
         }
 
     def get_graph(self) -> nx.DiGraph:
+        if self._unavailable:
+            raise RuntimeError("ROAD_GRAPH_UNAVAILABLE")
         if self._graph is None:
             self.load_graph()
         assert self._graph is not None
@@ -87,7 +95,7 @@ class RoadGraphManager:
 
     @property
     def is_loaded(self) -> bool:
-        return self._graph is not None
+        return not self._unavailable and self._graph is not None
 
     @property
     def node_count(self) -> int:

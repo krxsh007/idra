@@ -5,7 +5,8 @@ import uuid
 import structlog
 
 from app.agents.base import AgentFailure, BaseAgent, RunContext
-from app.db.models.enums import AgentName
+from app.db.models.enums import AgentName, AgentStatus
+from app.gis.graph import road_graph_manager
 from app.gis.routing import hazard_router
 from app.gis.spatial import get_blocked_edges
 from app.schemas.agents.routing import (
@@ -35,6 +36,13 @@ class RoutingAgent(BaseAgent[RoutingInput, RoutingOutput]):
     ) -> RoutingOutput | AgentFailure:
         log = logger.bind(agent=self.agent_name.value, event_id=str(input_data.event.id))
         log.info("routing_computation_started")
+
+        if road_graph_manager._unavailable:
+            return AgentFailure(
+                code="ROAD_GRAPH_UNAVAILABLE",
+                message="Road network graph is not loaded or unavailable.",
+                status=AgentStatus.FAILED,
+            )
 
         # 1. Fetch blocked edges from DB if session exists
         blocked_edges: set[tuple[int, int]] = set()
