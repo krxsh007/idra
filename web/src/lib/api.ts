@@ -1,5 +1,7 @@
 import {
   ApiError,
+  CitizenQueryInput,
+  CitizenQueryResponse,
   DisasterEvent,
   EventCreateInput,
   EventListResponse,
@@ -7,10 +9,15 @@ import {
   HazardZoneCreateInput,
   HazardZoneListResponse,
   IncidentReport,
+  Recommendation,
+  RecommendationListResponse,
   ReportCreateInput,
   ReportListResponse,
+  RunDetail,
   TokenResponse,
   User,
+  VerificationStatus,
+  VerifyRecommendationInput,
 } from '../types/api';
 
 const API_BASE = '/api/v1';
@@ -103,6 +110,53 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  // Recommendations & Verification
+  async getRecommendations(
+    eventId?: string,
+    status?: VerificationStatus
+  ): Promise<RecommendationListResponse> {
+    const params = new URLSearchParams();
+    if (eventId) params.append('event_id', eventId);
+    if (status) params.append('verification_status', status);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request<RecommendationListResponse>(`/recommendations${qs}`);
+  }
+
+  async verifyRecommendation(
+    recId: string,
+    data: VerifyRecommendationInput
+  ): Promise<Recommendation> {
+    return this.request<Recommendation>(`/recommendations/${recId}/verify`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Runs
+  async triggerRun(eventId: string, force = false): Promise<RunDetail> {
+    return this.request<RunDetail>('/runs', {
+      method: 'POST',
+      body: JSON.stringify({ event_id: eventId, force }),
+    });
+  }
+
+  async getEventRuns(eventId: string): Promise<{ items: RunDetail[]; total: number }> {
+    return this.request<{ items: RunDetail[]; total: number }>(`/events/${eventId}/runs`);
+  }
+
+  // Citizen Assistant
+  async queryAssistant(data: CitizenQueryInput): Promise<CitizenQueryResponse> {
+    return this.request<CitizenQueryResponse>('/assistant/query', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // GeoJSON Multi-layer
+  async getEventGeoJson(eventId: string): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(`/events/${eventId}/geojson`);
   }
 }
 

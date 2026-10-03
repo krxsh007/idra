@@ -43,3 +43,25 @@ def test_study_area_bbox_constants() -> None:
     assert "12.95" in content
     assert "80.30" in content
     assert "13.15" in content
+
+
+def test_m12_ui_components_present() -> None:
+    base_dir = os.path.join(os.path.dirname(__file__), "../../web/src/components")
+    expected_files = [
+        "briefing/OriginBadge.tsx",
+        "briefing/ProvenanceTag.tsx",
+        "briefing/VerificationControls.tsx",
+        "briefing/RecommendationCard.tsx",
+        "briefing/BriefingPanel.tsx",
+        "runs/RunTimeline.tsx",
+        "assistant/CitizenChatDrawer.tsx",
+    ]
+    for rel_path in expected_files:
+        full_path = os.path.join(base_dir, rel_path)
+        assert os.path.exists(full_path), f"Missing M12 component: {rel_path}"
+
+    header_path = os.path.join(base_dir, "layout/Header.tsx")
+    with open(header_path, encoding="utf-8") as f:
+        header_content = f.read()
+    assert "DISCLAIMER:" in header_content
+    assert "112" in header_content

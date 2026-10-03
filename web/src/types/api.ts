@@ -164,3 +164,103 @@ export interface ApiError {
     timestamp: string;
   };
 }
+
+export type VerificationStatus = 'PENDING' | 'VERIFIED' | 'OVERRIDDEN' | 'REJECTED';
+
+export type Origin = 'AI_GENERATED' | 'DETERMINISTIC_COMPUTATION' | 'HUMAN_ENTERED';
+
+export interface RecommendationCitation {
+  id: number;
+  document_title: string;
+  source_type: string;
+  source_url?: string | null;
+  section_path?: string | null;
+  quoted_span?: string | null;
+  relevance_score?: number | null;
+}
+
+export interface Recommendation {
+  id: string;
+  run_id: string;
+  event_id: string;
+  agent: string;
+  priority: number;
+  title: string;
+  body: string;
+  origin: Origin;
+  confidence?: number | null;
+  structured_ref?: Record<string, unknown> | null;
+  verification_status: VerificationStatus;
+  verified_by?: string | null;
+  verified_at?: string | null;
+  override_note?: string | null;
+  created_at: string;
+  citations: RecommendationCitation[];
+}
+
+export interface RecommendationListResponse {
+  items: Recommendation[];
+  total: number;
+}
+
+export interface VerifyRecommendationInput {
+  action: VerificationStatus;
+  note?: string;
+}
+
+export interface AgentOutput {
+  id: string;
+  agent: string;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  latency_ms?: number | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  created_at: string;
+}
+
+export interface RunDetail {
+  id: string;
+  event_id: string;
+  status: string;
+  triggered_by?: string | null;
+  assessed_severity?: SeverityLevel | null;
+  needs_human_review: boolean;
+  total_latency_ms?: number | null;
+  started_at: string;
+  finished_at?: string | null;
+  outputs: AgentOutput[];
+}
+
+export interface CitizenQueryInput {
+  query: string;
+  location?: EpicenterPoint;
+  session_id?: string;
+  event_id?: string;
+}
+
+export interface CitizenCitation {
+  chunk_id?: string;
+  document_title: string;
+  quoted_span?: string | null;
+  relevance_score?: number | null;
+}
+
+export interface NearestFacilityItem {
+  facility_id: string;
+  name: string;
+  facility_type: FacilityType;
+  distance_m: number;
+  capacity_provenance: string;
+}
+
+export interface CitizenQueryResponse {
+  session_id: string;
+  answer: string;
+  citations: CitizenCitation[];
+  nearest_facilities: NearestFacilityItem[];
+  escalated: boolean;
+  escalation_reason?: string | null;
+  safety_flag: 'NONE' | 'URGENT' | 'LIFE_THREATENING';
+  disclaimer: string;
+}
+

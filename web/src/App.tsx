@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { ClipboardList, FileText } from 'lucide-react';
 import { Header } from './components/layout/Header';
 import { MapContainer } from './components/map/MapContainer';
 import { LayerControls } from './components/map/LayerControls';
 import { EventDetailPanel } from './components/events/EventDetailPanel';
+import { BriefingPanel } from './components/briefing/BriefingPanel';
+import { RunTimeline } from './components/runs/RunTimeline';
+import { CitizenChatDrawer } from './components/assistant/CitizenChatDrawer';
 import { LoginModal } from './components/auth/LoginModal';
 import { EventCreateModal } from './components/events/EventCreateModal';
 import { HazardZoneCreateModal } from './components/hazards/HazardZoneCreateModal';
@@ -35,6 +39,10 @@ const Dashboard: React.FC = () => {
   // Map location picker state
   const [isPickingLocation, setIsPickingLocation] = useState(false);
   const [onPickCallback, setOnPickCallback] = useState<((coords: EpicenterPoint) => void) | null>(null);
+
+  // Operations tab and map focus state
+  const [sidebarTab, setSidebarTab] = useState<'briefing' | 'details'>('briefing');
+  const [focusCoordinates, setFocusCoordinates] = useState<{ lon: number; lat: number } | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -102,6 +110,7 @@ const Dashboard: React.FC = () => {
             reports={reportsData?.items || []}
             onMapClick={handleMapClick}
             isPickingLocation={isPickingLocation}
+            focusCoordinates={focusCoordinates}
           />
 
           {/* Floating Layer Controls */}
@@ -110,17 +119,65 @@ const Dashboard: React.FC = () => {
           </div>
         </main>
 
-        {/* Right Collapsible Event Detail Sidebar */}
-        <aside className="h-full z-10 shadow-2xl">
-          <EventDetailPanel
-            event={selectedEvent}
-            hazardZones={hazardZonesData?.items || []}
-            reports={reportsData?.items || []}
-            onAddHazardZone={() => setIsNewHazardOpen(true)}
-            onOpenReportModal={() => setIsSubmitReportOpen(true)}
-          />
+        {/* Right Collapsible Operations & Detail Sidebar */}
+        <aside className="h-full z-10 shadow-2xl flex flex-col w-80 lg:w-96 bg-slate-950 border-l border-slate-800">
+          {/* Tab Switcher */}
+          <div className="flex border-b border-slate-800 bg-slate-900/90 p-1.5 text-xs gap-1 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setSidebarTab('briefing')}
+              className={`flex-1 py-1.5 px-3 rounded-md font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                sidebarTab === 'briefing'
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              <span>Briefing & Runs</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSidebarTab('details')}
+              className={`flex-1 py-1.5 px-3 rounded-md font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                sidebarTab === 'details'
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Event Details</span>
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div className="flex-1 overflow-hidden">
+            {sidebarTab === 'briefing' ? (
+              <div className="flex flex-col h-full overflow-y-auto">
+                <div className="p-3 border-b border-slate-800/80 bg-slate-900/40 flex-shrink-0">
+                  <RunTimeline eventId={selectedEvent?.id} />
+                </div>
+                <div className="flex-1 overflow-hidden min-h-[350px]">
+                  <BriefingPanel
+                    eventId={selectedEvent?.id}
+                    onFocusCoordinates={setFocusCoordinates}
+                  />
+                </div>
+              </div>
+            ) : (
+              <EventDetailPanel
+                event={selectedEvent}
+                hazardZones={hazardZonesData?.items || []}
+                reports={reportsData?.items || []}
+                onAddHazardZone={() => setIsNewHazardOpen(true)}
+                onOpenReportModal={() => setIsSubmitReportOpen(true)}
+              />
+            )}
+          </div>
         </aside>
       </div>
+
+      {/* Citizen Emergency Assistant Chat Drawer */}
+      <CitizenChatDrawer eventId={selectedEvent?.id} />
 
       {/* Modals */}
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />

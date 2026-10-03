@@ -1,10 +1,10 @@
-import React from 'react';
 import {
-  ShieldAlert,
-  PlusCircle,
+  AlertTriangle,
   FilePlus2,
   LogIn,
   LogOut,
+  PlusCircle,
+  ShieldAlert,
   User as UserIcon,
 } from 'lucide-react';
 import { DisasterEvent } from '../../types/api';
@@ -30,7 +30,16 @@ export const Header: React.FC<HeaderProps> = ({
   const { user, isAuthenticated, logout, hasRole } = useAuthStore();
 
   return (
-    <header className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-6 py-3.5 flex items-center justify-between shadow-md">
+    <div className="flex flex-col flex-shrink-0 z-30">
+      {/* Fixed Non-dismissible Safety Disclaimer Banner */}
+      <div className="bg-amber-950/90 border-b border-amber-700/60 px-4 py-1.5 text-[11px] text-amber-200 flex items-center justify-center gap-2 text-center font-medium shadow-inner">
+        <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+        <span>
+          <strong>DISCLAIMER:</strong> IDRA automated advisory proposals require human verification before execution. In life-threatening emergencies, call <strong>112</strong> or <strong>1077</strong>.
+        </span>
+      </div>
+
+      <header className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-6 py-3 flex items-center justify-between shadow-md">
       {/* Brand & Active Event Selector */}
       <div className="flex items-center space-x-6">
         <div className="flex items-center space-x-3">
@@ -127,5 +136,6 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
     </header>
+    </div>
   );
 };

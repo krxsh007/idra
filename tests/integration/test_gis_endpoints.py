@@ -117,7 +117,13 @@ async def test_event_geojson_feature_provenance(async_client: AsyncClient) -> No
     empty_list_mock = MagicMock()
     empty_list_mock.scalars.return_value.all.return_value = []
 
-    mock_session.execute.side_effect = [ev_res, empty_list_mock, empty_list_mock, empty_list_mock]
+    mock_session.execute.side_effect = [
+        ev_res,
+        empty_list_mock,
+        empty_list_mock,
+        empty_list_mock,
+        empty_list_mock,
+    ]
 
     app.dependency_overrides[get_db] = lambda: mock_session
 
@@ -127,6 +133,8 @@ async def test_event_geojson_feature_provenance(async_client: AsyncClient) -> No
         data = res.json()
         assert data["type"] == "FeatureCollection"
         assert len(data["features"]) >= 1
+        assert "hazard_zones" in data
+        assert "routes" in data
         epicenter_feat = data["features"][0]
         assert epicenter_feat["properties"]["feature_type"] == "event_epicenter"
         assert epicenter_feat["properties"]["data_provenance"] == "REAL"

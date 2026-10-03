@@ -10,6 +10,7 @@ interface MapContainerProps {
   facilities?: Facility[];
   onMapClick?: (coords: { lon: number; lat: number }) => void;
   isPickingLocation?: boolean;
+  focusCoordinates?: { lon: number; lat: number } | null;
 }
 
 const CHENNAI_BBOX_GEOJSON = {
@@ -36,6 +37,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   facilities = [],
   onMapClick,
   isPickingLocation = false,
+  focusCoordinates = null,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -371,6 +373,18 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       map.setLayoutProperty('hazard-zones-line', 'visibility', visibility);
     }
   }, [showBBox, showHazards]);
+
+  // Focus on coordinates from briefing recommendation or search
+  useEffect(() => {
+    if (focusCoordinates && mapRef.current) {
+      mapRef.current.flyTo({
+        center: [focusCoordinates.lon, focusCoordinates.lat],
+        zoom: 14.5,
+        essential: true,
+        duration: 1200,
+      });
+    }
+  }, [focusCoordinates]);
 
   return (
     <div className="relative w-full h-full min-h-[500px] rounded-xl overflow-hidden border border-slate-800 shadow-inner">

@@ -277,11 +277,9 @@ async def get_event_geojson(
             message=f"Disaster event {event_id} not found",
         )
 
-    features: list[dict[str, Any]] = []
-
     # 1. Event Epicenter Feature
     epicenter_shape = to_shape(event.epicenter)
-    features.append(
+    event_area_features: list[dict[str, Any]] = [
         {
             "type": "Feature",
             "geometry": mapping(epicenter_shape),
@@ -296,13 +294,14 @@ async def get_event_geojson(
                 "data_provenance": "REAL",
             },
         }
-    )
+    ]
 
     # 2. Hazard Zones Features
+    hazard_zone_features: list[dict[str, Any]] = []
     hz_stmt = select(HazardZone).where(HazardZone.event_id == event.id)
     hazard_zones = (await db.execute(hz_stmt)).scalars().all()
     for hz in hazard_zones:
-        features.append(
+        hazard_zone_features.append(
             {
                 "type": "Feature",
                 "geometry": mapping(to_shape(hz.geom)),
@@ -320,10 +319,11 @@ async def get_event_geojson(
         )
 
     # 3. Incident Reports Features
+    report_features: list[dict[str, Any]] = []
     rep_stmt = select(IncidentReport).where(IncidentReport.event_id == event.id)
     reports = (await db.execute(rep_stmt)).scalars().all()
     for rep in reports:
-        features.append(
+        report_features.append(
             {
                 "type": "Feature",
                 "geometry": mapping(to_shape(rep.location)),
@@ -340,10 +340,11 @@ async def get_event_geojson(
         )
 
     # 4. Facilities within event impact radius
+    facility_features: list[dict[str, Any]] = []
     fac_stmt = select(Facility).limit(20)
     facilities = (await db.execute(fac_stmt)).scalars().all()
     for fac in facilities:
-        features.append(
+        facility_features.append(
             {
                 "type": "Feature",
                 "geometry": mapping(to_shape(fac.location)),
@@ -360,14 +361,52 @@ async def get_event_geojson(
             }
         )
 
+    # 5. Evacuation Routes
+    route_features: list[dict[str, Any]] = []
+    route_stmt = select(Route).where(Route.event_id == event.id)
+    routes = (await db.execute(route_stmt)).scalars().all()
+    for r in routes:
+        route_features.append(
+            {
+                "type": "Feature",
+                "geometry": mapping(to_shape(r.path_geom)),
+                "properties": {
+                    "feature_type": "route",
+                    "id": str(r.id),
+                    "distance_m": r.distance_m,
+                    "duration_s": r.duration_s,
+                    "traverses_hazard": r.traverses_hazard,
+                    "supersedes_route_id": (
+                        str(r.supersedes_route_id) if r.supersedes_route_id else None
+                    ),
+                    "is_current": r.supersedes_route_id is None,
+                    "computed_at": r.computed_at.isoformat() if r.computed_at else None,
+                    "data_provenance": "SIMULATED",
+                },
+            }
+        )
+
+    all_features = (
+        event_area_features
+        + hazard_zone_features
+        + report_features
+        + facility_features
+        + route_features
+    )
+
     return {
         "type": "FeatureCollection",
         "properties": {
             "event_id": str(event.id),
             "event_name": event.name,
-            "feature_count": len(features),
+            "feature_count": len(all_features),
         },
-        "features": features,
+        "features": all_features,
+        "hazard_zones": {"type": "FeatureCollection", "features": hazard_zone_features},
+        "facilities": {"type": "FeatureCollection", "features": facility_features},
+        "reports": {"type": "FeatureCollection", "features": report_features},
+        "routes": {"type": "FeatureCollection", "features": route_features},
+        "event_area": {"type": "FeatureCollection", "features": event_area_features},
     }
 
 
