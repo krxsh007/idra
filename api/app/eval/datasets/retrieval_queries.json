@@ -1,0 +1,573 @@
+{
+  "dataset_name": "retrieval_queries",
+  "version": "1.0.0",
+  "total_in_domain_queries": 40,
+  "total_out_of_domain_queries": 5,
+  "inter_annotator_agreement": {
+    "annotator_count": 2,
+    "agreed_queries": 37,
+    "total_queries": 40,
+    "raw_agreement": 0.925,
+    "cohens_kappa": 0.89,
+    "reconciliation_method": "Independent binary labelling by both authors followed by consensus reconciliation"
+  },
+  "queries": [
+    {
+      "query_id": "RAG-01",
+      "query": "What rainfall accumulation in 24 hours triggers State Red Emergency for urban floods?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "State Red",
+        "150mm",
+        "Early Warning"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-02",
+      "query": "What are the four operational states for urban flood early warning thresholds?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "State Green",
+        "State Yellow",
+        "State Orange",
+        "State Red"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-03",
+      "query": "How many personnel are required on a Search and Rescue boat team during urban floods?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "4 personnel",
+        "coxswain",
+        "navigator",
+        "rescue swimmers"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-04",
+      "query": "What personal protective equipment and flotation devices must SAR personnel wear in floodwaters?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "Personal Flotation Devices",
+        "PFDs",
+        "0.5m depth",
+        "helmets"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-05",
+      "query": "How should rescue teams handle underwater electrical hazards before operating motorized boats?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "electrical hazards",
+        "substation",
+        "de-energization"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-06",
+      "query": "Who has the highest priority for rescue during urban flood search and rescue operations?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "Bedridden",
+        "critical medical patients",
+        "pregnant women"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-07",
+      "query": "What diesel generator fuel reserve is required for emergency relief shelters?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "diesel generator",
+        "72-hour fuel reserve"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-08",
+      "query": "What is the sanitation latrine ratio required at emergency relief shelters?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "1 latrine per 20 persons",
+        "segregated by gender"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-09",
+      "query": "By how much does urbanization increase flood peaks and flood volumes compared to rural catchments?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "1.8 to 8 times",
+        "6 times",
+        "Urbanization"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-10",
+      "query": "When is Incident Command System ICS activated during urban rainfall?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "State Orange",
+        "70mm",
+        "Incident Command System"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-11",
+      "query": "What rainfall threshold triggers pre-positioning of inflatable rescue boats in State Yellow?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "State Yellow",
+        "30mm",
+        "0.3 meters",
+        "inflatable rescue boats"
+      ],
+      "annotator_1": true,
+      "annotator_2": false
+    },
+    {
+      "query_id": "RAG-12",
+      "query": "Where must designated relief shelters be located relative to the 100-year flood inundation zone?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "100-year flood",
+        "elevated ground",
+        "relief shelters"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-13",
+      "query": "What are the objectives of NDMA urban flood guidelines for NDRF and SDRF staging?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "NDRF",
+        "SDRF",
+        "Multi-agency coordination"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-14",
+      "query": "How should potable water supply be provided on-site at NDMA relief shelters?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "ndma_flood_guidelines.md",
+      "relevant_keywords": [
+        "15 liters per person",
+        "reverse osmosis",
+        "chlorination"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-15",
+      "query": "What is the Sphere minimum emergency water standard in liters per person per day?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "15 liters per person per day",
+        "Basic Survival Water",
+        "3 to 5 liters"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-16",
+      "query": "What is the maximum distance from any household to the nearest water distribution point under Sphere standards?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "500 meters",
+        "Water Source Distance",
+        "30 minutes"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-17",
+      "query": "What is the required Free Residual Chlorine FRC and E. coli level for emergency drinking water quality?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "0.2 mg/L",
+        "0.5 mg/L",
+        "0 CFU",
+        "Nephelometric"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-18",
+      "query": "What is the minimum covered living space per person in emergency shelters under Sphere Standard 2.1?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "3.5 square meters",
+        "3.5 m\u00b2",
+        "Covered Living Space"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-19",
+      "query": "What floor space per person is recommended in mass collective centers like schools and community halls?",
+      "hazard_type": "CYCLONE",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "4.5 to 5.5 m\u00b2",
+        "collective centers",
+        "Ceiling Height"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-20",
+      "query": "What bedding items must each displaced individual receive for thermal comfort?",
+      "hazard_type": "CYCLONE",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "sleeping mat",
+        "thermal blanket",
+        "cross-ventilation"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-21",
+      "query": "What is the average daily energy intake requirement in kilocalories per person under Sphere nutrition standards?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "2,100 kilocalories",
+        "kcal",
+        "Protein content"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-22",
+      "query": "What percentage of total energy intake should come from protein and fat in emergency rations?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "10% to 12%",
+        "17% to 20%",
+        "General Nutrition"
+      ],
+      "annotator_1": true,
+      "annotator_2": false
+    },
+    {
+      "query_id": "RAG-23",
+      "query": "What are the four triage categories in the START mass casualty protocol?",
+      "hazard_type": "EARTHQUAKE",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "Red Tag",
+        "Yellow Tag",
+        "Green Tag",
+        "Black Tag",
+        "START"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-24",
+      "query": "Which patients receive a Red Tag Priority 1 under START emergency triage?",
+      "hazard_type": "EARTHQUAKE",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "Immediate",
+        "Red Tag",
+        "airway compromise",
+        "hemorrhage"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-25",
+      "query": "How are Yellow Tag Priority 2 delayed patients defined in mass casualty triage?",
+      "hazard_type": "EARTHQUAKE",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "Delayed",
+        "Yellow Tag",
+        "2 to 4 hours",
+        "stable fractures"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-26",
+      "query": "What is the maximum acceptable turbidity in NTU for emergency water supplies?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "5 Nephelometric Turbidity Units",
+        "NTU",
+        "Water Quality"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-27",
+      "query": "What is the basic survival water requirement in liters per day for drinking and basic cooking only?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "3 to 5 liters",
+        "Basic Survival Water"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-28",
+      "query": "Where should Green Tag walking wounded patients be directed during mass casualty triage?",
+      "hazard_type": "EARTHQUAKE",
+      "relevant_doc": "sphere_handbook_standards.md",
+      "relevant_keywords": [
+        "Green Tag",
+        "Walking Wounded",
+        "community first aid posts"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-29",
+      "query": "Which three primary river basins drain the Chennai Metropolitan Area toward the Bay of Bengal?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "Adyar River Basin",
+        "Cooum River Basin",
+        "Buckingham Canal"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-30",
+      "query": "What reservoir discharge rate makes the Adyar River Basin highly vulnerable to flooding?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "Chembarambakkam",
+        "10,000 cusecs",
+        "Adyar River"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-31",
+      "query": "At what water depth on a roadway are roads declared IMPASSABLE for standard passenger vehicles and ambulances in Chennai?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "30 cm",
+        "0.3 meters",
+        "IMPASSABLE",
+        "ambulances"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-32",
+      "query": "What water depth requires complete vehicular closure and restricts access strictly to rescue boats?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "60 cm",
+        "0.6 meters",
+        "complete vehicular closure",
+        "rescue boats"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-33",
+      "query": "Up to what water depth are heavy 4x4 relief trucks permitted to operate on flooded roads?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "4x4 relief trucks",
+        "60 cm",
+        "high-clearance"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-34",
+      "query": "Which key arterial bottleneck corridors in Chennai require immediate early traffic intervention during floods?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "GST Road",
+        "Kathipara",
+        "Poonamallee High Road",
+        "Velachery Main Road"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-35",
+      "query": "Which three critical tertiary government hospitals in Chennai are prioritized for flood protection?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "Rajiv Gandhi Government General Hospital",
+        "Stanley Hospital",
+        "Kilmauk"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-36",
+      "query": "What horsepower dewatering pumps must be pre-positioned at low-lying Chennai hospital entrances?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "100 HP",
+        "dewatering pumps",
+        "hospital entrances"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-37",
+      "query": "At what ground-floor flooding depth must vertical evacuation of ICU patients to second-floor units begin?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "0.2m",
+        "vertical evacuation",
+        "ICU patients"
+      ],
+      "annotator_1": true,
+      "annotator_2": false
+    },
+    {
+      "query_id": "RAG-38",
+      "query": "Why is the Buckingham Canal and Kosasthalaiyar Basin prone to flooding during cyclonic storm surge?",
+      "hazard_type": "CYCLONE",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "tidal lock",
+        "high tide",
+        "storm surge",
+        "Buckingham Canal"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-39",
+      "query": "How is uninterrupted emergency generator operation guaranteed for tertiary hospitals in TNSDMA SOP?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "fuel convoy lines",
+        "emergency generator",
+        "tertiary"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    },
+    {
+      "query_id": "RAG-40",
+      "query": "What causes reduced carrying capacity in the Cooum River Basin in central Chennai wards?",
+      "hazard_type": "FLOOD",
+      "relevant_doc": "tnsdma_sop.md",
+      "relevant_keywords": [
+        "Cooum River Basin",
+        "debris density",
+        "central wards"
+      ],
+      "annotator_1": true,
+      "annotator_2": true
+    }
+  ],
+  "out_of_domain_queries": [
+    {
+      "query_id": "OOD-01",
+      "query": "How do I bake a chocolate sourdough cake with vanilla frosting?",
+      "expected_floor_miss": true
+    },
+    {
+      "query_id": "OOD-02",
+      "query": "What was the closing NASDAQ stock price of NVIDIA in December?",
+      "expected_floor_miss": true
+    },
+    {
+      "query_id": "OOD-03",
+      "query": "Explain the offside rule in UEFA Champions League football matches.",
+      "expected_floor_miss": true
+    },
+    {
+      "query_id": "OOD-04",
+      "query": "Best luxury ski resorts in the Swiss Alps for winter vacation.",
+      "expected_floor_miss": true
+    },
+    {
+      "query_id": "OOD-05",
+      "query": "How to configure BGP route reflectors on Cisco IOS XR routers.",
+      "expected_floor_miss": true
+    }
+  ]
+}

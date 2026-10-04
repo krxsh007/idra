@@ -1,0 +1,61 @@
+{
+  "dataset_name": "ui_study_results",
+  "version": "1.0.0",
+  "study_status": "AWAITING_HUMAN_PARTICIPANTS",
+  "target_participants": 8,
+  "completed_participants": 0,
+  "note": "Per Artifact 15 Rule 5, human usability study metrics (SUS score, human task completion time, and human comprehension rate) are recorded as null until the live 6-8 participant cohort session is conducted by the project authors. Automated UI component verification assertions are 100% passing.",
+  "measured_human_metrics": {
+    "sus_mean_score": null,
+    "task_completion_rate": null,
+    "origin_badge_comprehension_rate": null,
+    "provenance_tag_comprehension_rate": null
+  },
+  "automated_ui_component_checks": {
+    "origin_badge_states_verified": 4,
+    "provenance_tag_variants_verified": 2,
+    "non_dismissible_disclaimer_verified": true,
+    "admin_only_verification_controls_verified": true,
+    "briefing_to_map_flyto_binding_verified": true
+  },
+  "tasks": [
+    {
+      "task_id": "UI-T1",
+      "description": "Locate active flood event and identify impassable hazard zones on the MapLibre canvas."
+    },
+    {
+      "task_id": "UI-T2",
+      "description": "Trigger an AI orchestration run and monitor the 7-agent progress timeline."
+    },
+    {
+      "task_id": "UI-T3",
+      "description": "Inspect top priority recommendation card, expand SOP citation, and click to pan map to target facility."
+    },
+    {
+      "task_id": "UI-T4",
+      "description": "Distinguish AI-generated pending recommendation from deterministic computation and simulated capacity tags."
+    },
+    {
+      "task_id": "UI-T5",
+      "description": "Approve or override a recommendation as ADMIN with an audit note."
+    }
+  ],
+  "comprehension_questions": [
+    {
+      "q_id": "COMP-1",
+      "question": "Does a PENDING recommendation automatically dispatch ambulances or mutate hospital bed counts?"
+    },
+    {
+      "q_id": "COMP-2",
+      "question": "What does the amber 'SIMULATED CAPACITY' tag next to shelter occupancy indicate?"
+    },
+    {
+      "q_id": "COMP-3",
+      "question": "What is the difference between 'AI-Generated' and 'Deterministic Computation' on the OriginBadge?"
+    },
+    {
+      "q_id": "COMP-4",
+      "question": "What happens when a route is shown as a dashed line crossing a hazard polygon?"
+    }
+  ]
+}

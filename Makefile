@@ -1,4 +1,4 @@
-.PHONY: up down test lint format mypy migrate seed types clean
+.PHONY: up down test lint format mypy migrate seed eval smoke types clean
 
 up:
 	docker compose up -d
@@ -28,6 +28,10 @@ seed:
 	PYTHONPATH=api:. .venv/bin/python scripts/load_facilities.py
 	PYTHONPATH=api:. .venv/bin/python scripts/load_resources.py
 	PYTHONPATH=api:. .venv/bin/python scripts/seed_scenarios.py
+	PYTHONPATH=api:. .venv/bin/python scripts/seed_eval_set.py
+
+eval:
+	PYTHONPATH=api:. .venv/bin/python scripts/run_eval.py
 
 smoke:
 	bash scripts/smoke.sh

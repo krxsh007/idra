@@ -1,0 +1,187 @@
+{
+  "dataset_name": "resource_cases",
+  "version": "1.0.0",
+  "total_cases": 10,
+  "cases": [
+    {
+      "case_id": "RES-01",
+      "severity": "SEVERE",
+      "people_affected": 500,
+      "casualties": true,
+      "stock": {
+        "RESCUE_BOAT": 10,
+        "AMBULANCE": 8,
+        "FOOD_KIT": 600,
+        "WATER_TANKER": 6,
+        "MEDICAL_TEAM": 5,
+        "BLANKET_KIT": 100,
+        "GENERATOR": 4,
+        "RESCUE_TEAM": 6
+      },
+      "expect_shortfall": false,
+      "expect_zero_overcommit": true
+    },
+    {
+      "case_id": "RES-02",
+      "severity": "SEVERE",
+      "people_affected": 1000,
+      "casualties": true,
+      "stock": {
+        "RESCUE_BOAT": 2,
+        "AMBULANCE": 1,
+        "FOOD_KIT": 20,
+        "WATER_TANKER": 1,
+        "MEDICAL_TEAM": 1,
+        "BLANKET_KIT": 20,
+        "GENERATOR": 1,
+        "RESCUE_TEAM": 1
+      },
+      "expect_shortfall": true,
+      "expect_zero_overcommit": true
+    },
+    {
+      "case_id": "RES-03",
+      "severity": "HIGH",
+      "people_affected": 300,
+      "casualties": true,
+      "stock": {
+        "RESCUE_BOAT": 6,
+        "AMBULANCE": 5,
+        "FOOD_KIT": 400,
+        "WATER_TANKER": 5,
+        "MEDICAL_TEAM": 4,
+        "BLANKET_KIT": 80,
+        "GENERATOR": 3,
+        "RESCUE_TEAM": 4
+      },
+      "expect_shortfall": false,
+      "expect_zero_overcommit": true
+    },
+    {
+      "case_id": "RES-04",
+      "severity": "HIGH",
+      "people_affected": 450,
+      "casualties": false,
+      "stock": {
+        "RESCUE_BOAT": 1,
+        "AMBULANCE": 4,
+        "FOOD_KIT": 30,
+        "WATER_TANKER": 1,
+        "MEDICAL_TEAM": 2,
+        "BLANKET_KIT": 40,
+        "GENERATOR": 2,
+        "RESCUE_TEAM": 2
+      },
+      "expect_shortfall": true,
+      "expect_zero_overcommit": true
+    },
+    {
+      "case_id": "RES-05",
+      "severity": "MODERATE",
+      "people_affected": 150,
+      "casualties": false,
+      "stock": {
+        "RESCUE_BOAT": 4,
+        "AMBULANCE": 4,
+        "FOOD_KIT": 200,
+        "WATER_TANKER": 3,
+        "MEDICAL_TEAM": 2,
+        "BLANKET_KIT": 50,
+        "GENERATOR": 2,
+        "RESCUE_TEAM": 3
+      },
+      "expect_shortfall": false,
+      "expect_zero_overcommit": true
+    },
+    {
+      "case_id": "RES-06",
+      "severity": "MODERATE",
+      "people_affected": 200,
+      "casualties": true,
+      "stock": {
+        "RESCUE_BOAT": 0,
+        "AMBULANCE": 0,
+        "FOOD_KIT": 0,
+        "WATER_TANKER": 0,
+        "MEDICAL_TEAM": 0,
+        "BLANKET_KIT": 0,
+        "GENERATOR": 0,
+        "RESCUE_TEAM": 0
+      },
+      "expect_shortfall": true,
+      "expect_zero_overcommit": true
+    },
+    {
+      "case_id": "RES-07",
+      "severity": "LOW",
+      "people_affected": 40,
+      "casualties": false,
+      "stock": {
+        "RESCUE_BOAT": 5,
+        "AMBULANCE": 5,
+        "FOOD_KIT": 100,
+        "WATER_TANKER": 4,
+        "MEDICAL_TEAM": 2,
+        "BLANKET_KIT": 30,
+        "GENERATOR": 2,
+        "RESCUE_TEAM": 2
+      },
+      "expect_shortfall": false,
+      "expect_zero_overcommit": true
+    },
+    {
+      "case_id": "RES-08",
+      "severity": "SEVERE",
+      "people_affected": 800,
+      "casualties": true,
+      "stock": {
+        "RESCUE_BOAT": 2,
+        "AMBULANCE": 2,
+        "FOOD_KIT": 30,
+        "WATER_TANKER": 1,
+        "MEDICAL_TEAM": 1,
+        "BLANKET_KIT": 50,
+        "GENERATOR": 2,
+        "RESCUE_TEAM": 2
+      },
+      "expect_shortfall": true,
+      "expect_zero_overcommit": true
+    },
+    {
+      "case_id": "RES-09",
+      "severity": "HIGH",
+      "people_affected": 250,
+      "casualties": true,
+      "stock": {
+        "RESCUE_BOAT": 8,
+        "AMBULANCE": 8,
+        "FOOD_KIT": 500,
+        "WATER_TANKER": 8,
+        "MEDICAL_TEAM": 6,
+        "BLANKET_KIT": 120,
+        "GENERATOR": 6,
+        "RESCUE_TEAM": 6
+      },
+      "expect_shortfall": false,
+      "expect_zero_overcommit": true
+    },
+    {
+      "case_id": "RES-10",
+      "severity": "LOW",
+      "people_affected": 20,
+      "casualties": false,
+      "stock": {
+        "RESCUE_BOAT": 4,
+        "AMBULANCE": 4,
+        "FOOD_KIT": 60,
+        "WATER_TANKER": 3,
+        "MEDICAL_TEAM": 2,
+        "BLANKET_KIT": 20,
+        "GENERATOR": 1,
+        "RESCUE_TEAM": 2
+      },
+      "expect_shortfall": false,
+      "expect_zero_overcommit": true
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "dataset_name": "conflict_cases",
+  "version": "1.0.0",
+  "total_cases": 8,
+  "cases": [
+    {
+      "case_id": "CONF-01",
+      "conflict_type": "FACILITY_OVER_CAPACITY",
+      "facility_capacity": 150,
+      "requested_load": 260,
+      "fallback_available": true,
+      "expected_resolved": true
+    },
+    {
+      "case_id": "CONF-02",
+      "conflict_type": "FACILITY_OVER_CAPACITY",
+      "facility_capacity": 100,
+      "requested_load": 180,
+      "fallback_available": true,
+      "expected_resolved": true
+    },
+    {
+      "case_id": "CONF-03",
+      "conflict_type": "FACILITY_OVER_CAPACITY",
+      "facility_capacity": 80,
+      "requested_load": 250,
+      "fallback_available": false,
+      "expected_resolved": false
+    },
+    {
+      "case_id": "CONF-04",
+      "conflict_type": "FACILITY_OVER_CAPACITY",
+      "facility_capacity": 200,
+      "requested_load": 320,
+      "fallback_available": true,
+      "expected_resolved": true
+    },
+    {
+      "case_id": "CONF-05",
+      "conflict_type": "CONTRADICTORY_SIGNAL",
+      "assessed_severity": "LOW",
+      "impassable_hazard_zones": 2,
+      "expected_detected": true
+    },
+    {
+      "case_id": "CONF-06",
+      "conflict_type": "CONTRADICTORY_SIGNAL",
+      "assessed_severity": "LOW",
+      "casualties_in_reports": true,
+      "expected_detected": true
+    },
+    {
+      "case_id": "CONF-07",
+      "conflict_type": "NO_CONFLICT",
+      "facility_capacity": 300,
+      "requested_load": 180,
+      "expected_resolved": true
+    },
+    {
+      "case_id": "CONF-08",
+      "conflict_type": "FACILITY_OVER_CAPACITY",
+      "facility_capacity": 120,
+      "requested_load": 200,
+      "fallback_available": true,
+      "expected_resolved": true
+    }
+  ]
+}

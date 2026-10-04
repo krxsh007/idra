@@ -37,16 +37,72 @@ class EmbeddingService:
         return self._model
 
     def _generate_deterministic_mock_vector(self, text: str) -> list[float]:
-        """Generate a reproducible, unit-normalized 384-dimensional vector from text hash."""
-        vec: list[float] = []
-        for i in range(self._dim):
-            seed_str = f"{text}_{i}"
-            val = int(hashlib.md5(seed_str.encode("utf-8")).hexdigest()[:8], 16) / 0xFFFFFFFF
-            # Shift to [-1.0, 1.0]
-            vec.append((val * 2.0) - 1.0)
+        """Generate a reproducible, unit-normalized 384-dimensional feature-hashed vector."""
+        import re
 
-        # L2 Normalize
+        stopwords = {
+            "the",
+            "and",
+            "for",
+            "are",
+            "what",
+            "how",
+            "who",
+            "when",
+            "where",
+            "which",
+            "why",
+            "with",
+            "from",
+            "into",
+            "that",
+            "this",
+            "must",
+            "should",
+            "under",
+            "during",
+            "near",
+            "per",
+            "in",
+            "on",
+            "at",
+            "to",
+            "of",
+            "by",
+            "is",
+            "be",
+            "or",
+            "a",
+            "an",
+        }
+        raw_tokens = re.findall(r"[a-z0-9]+", text.lower())
+        tokens = [t for t in raw_tokens if t not in stopwords and len(t) >= 2]
+        if not tokens:
+            tokens = raw_tokens or [text.lower()]
+
+        vec = [0.0] * self._dim
+        for tok in set(tokens):
+            features = [tok]
+            if len(tok) >= 5:
+                features.append(tok[:5])
+            if len(tok) >= 4:
+                features.append(tok[:4])
+            for feat in features:
+                digest = hashlib.md5(feat.encode("utf-8")).digest()
+                for k in range(0, 12, 3):
+                    idx = ((digest[k] << 8) | digest[k + 1]) % self._dim
+                    sign = 1.0 if (digest[k + 2] & 1) == 0 else -1.0
+                    vec[idx] += sign
+
+        # If all buckets cancelled out, fall back to whole-string hash
         norm = math.sqrt(sum(x * x for x in vec))
+        if norm == 0.0:
+            for i in range(self._dim):
+                seed_str = f"{text}_{i}"
+                val = int(hashlib.md5(seed_str.encode("utf-8")).hexdigest()[:8], 16) / 0xFFFFFFFF
+                vec[i] = (val * 2.0) - 1.0
+            norm = math.sqrt(sum(x * x for x in vec))
+
         if norm > 0:
             vec = [x / norm for x in vec]
         return vec

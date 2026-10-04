@@ -31,17 +31,57 @@ class RetrievedChunk:
 
 def compute_bm25_lexical_score(query: str, text: str) -> float:
     """Compute a lightweight term-frequency lexical overlap score normalized to [0, 1]."""
-    q_terms = set(re_clean(query).split())
-    if not q_terms:
+    stopwords = {
+        "what",
+        "how",
+        "when",
+        "where",
+        "who",
+        "which",
+        "why",
+        "is",
+        "are",
+        "was",
+        "were",
+        "the",
+        "for",
+        "in",
+        "on",
+        "at",
+        "to",
+        "of",
+        "by",
+        "with",
+        "from",
+        "into",
+        "under",
+        "during",
+        "near",
+        "should",
+        "must",
+        "many",
+        "much",
+        "does",
+        "do",
+        "an",
+        "a",
+        "or",
+    }
+    raw_q_terms = set(re_clean(query).split())
+    if not raw_q_terms:
         return 0.0
+    q_terms = {t for t in raw_q_terms if t not in stopwords and len(t) >= 2} or raw_q_terms
 
-    doc_words = re_clean(text).split()
+    doc_words = set(re_clean(text).split())
     if not doc_words:
         return 0.0
+    doc_stems = {w[:5] for w in doc_words if len(w) >= 5}
 
-    matches = sum(1 for term in q_terms if term in doc_words)
+    matches = sum(
+        1 for term in q_terms if term in doc_words or (len(term) >= 5 and term[:5] in doc_stems)
+    )
     overlap = matches / len(q_terms)
-    phrase_bonus = 0.3 if query.lower().strip() in text.lower() else 0.0
+    phrase_bonus = 0.3 if query.lower().strip() in text.lower() else (0.15 if matches >= 2 else 0.0)
     return min(1.0, overlap * 0.7 + phrase_bonus)
 
 

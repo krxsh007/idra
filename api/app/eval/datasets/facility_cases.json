@@ -1,0 +1,301 @@
+{
+  "dataset_name": "facility_cases",
+  "version": "1.0.0",
+  "total_cases": 10,
+  "cases": [
+    {
+      "case_id": "FAC-01",
+      "facility_type": "SHELTER",
+      "demand": 150,
+      "candidates": [
+        {
+          "name": "Corporation School Shelter A",
+          "distance_m": 800.0,
+          "available_capacity": 200,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true
+        },
+        {
+          "name": "Community Hall B",
+          "distance_m": 2500.0,
+          "available_capacity": 100,
+          "has_generator": false,
+          "wheelchair_access": true,
+          "is_operational": true
+        }
+      ],
+      "expected_top_name": "Corporation School Shelter A",
+      "expected_unmet_demand": 0
+    },
+    {
+      "case_id": "FAC-02",
+      "facility_type": "SHELTER",
+      "demand": 350,
+      "candidates": [
+        {
+          "name": "Shelter Alpha",
+          "distance_m": 1200.0,
+          "available_capacity": 200,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true
+        },
+        {
+          "name": "Shelter Beta",
+          "distance_m": 1800.0,
+          "available_capacity": 100,
+          "has_generator": true,
+          "wheelchair_access": false,
+          "is_operational": true
+        }
+      ],
+      "expected_top_name": "Shelter Alpha",
+      "expected_unmet_demand": 50
+    },
+    {
+      "case_id": "FAC-03",
+      "facility_type": "SHELTER",
+      "demand": 100,
+      "candidates": [
+        {
+          "name": "Non-Operational Shelter",
+          "distance_m": 400.0,
+          "available_capacity": 300,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": false
+        },
+        {
+          "name": "Active Relief Center",
+          "distance_m": 1500.0,
+          "available_capacity": 150,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true
+        }
+      ],
+      "expected_top_name": "Active Relief Center",
+      "expected_unmet_demand": 0
+    },
+    {
+      "case_id": "FAC-04",
+      "facility_type": "SHELTER",
+      "demand": 80,
+      "candidates": [
+        {
+          "name": "Full Shelter",
+          "distance_m": 500.0,
+          "available_capacity": 0,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true
+        },
+        {
+          "name": "Secondary School Shelter",
+          "distance_m": 2100.0,
+          "available_capacity": 120,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true
+        }
+      ],
+      "expected_top_name": "Secondary School Shelter",
+      "expected_unmet_demand": 0
+    },
+    {
+      "case_id": "FAC-05",
+      "facility_type": "SHELTER",
+      "demand": 120,
+      "candidates": [
+        {
+          "name": "Generator Equipped Shelter",
+          "distance_m": 1100.0,
+          "available_capacity": 150,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true
+        },
+        {
+          "name": "No-Power Hall",
+          "distance_m": 1050.0,
+          "available_capacity": 150,
+          "has_generator": false,
+          "wheelchair_access": false,
+          "is_operational": true
+        }
+      ],
+      "expected_top_name": "Generator Equipped Shelter",
+      "expected_unmet_demand": 0
+    },
+    {
+      "case_id": "FAC-06",
+      "facility_type": "HOSPITAL",
+      "required_specializations": [
+        "trauma",
+        "icu"
+      ],
+      "candidates": [
+        {
+          "name": "RGGGH Trauma Center",
+          "distance_m": 1900.0,
+          "available_capacity": 85,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true,
+          "specializations": [
+            "trauma",
+            "icu",
+            "general"
+          ]
+        },
+        {
+          "name": "Local Clinic",
+          "distance_m": 900.0,
+          "available_capacity": 15,
+          "has_generator": false,
+          "wheelchair_access": true,
+          "is_operational": true,
+          "specializations": [
+            "general"
+          ]
+        }
+      ],
+      "expected_top_name": "RGGGH Trauma Center"
+    },
+    {
+      "case_id": "FAC-07",
+      "facility_type": "HOSPITAL",
+      "required_specializations": [
+        "burns",
+        "surgical"
+      ],
+      "candidates": [
+        {
+          "name": "Kilpauk Medical College Hospital",
+          "distance_m": 1600.0,
+          "available_capacity": 65,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true,
+          "specializations": [
+            "burns",
+            "surgical",
+            "trauma"
+          ]
+        },
+        {
+          "name": "Suburban Maternity Home",
+          "distance_m": 1200.0,
+          "available_capacity": 20,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true,
+          "specializations": [
+            "pediatrics"
+          ]
+        }
+      ],
+      "expected_top_name": "Kilpauk Medical College Hospital"
+    },
+    {
+      "case_id": "FAC-08",
+      "facility_type": "HOSPITAL",
+      "required_specializations": [
+        "pediatrics"
+      ],
+      "candidates": [
+        {
+          "name": "Egmore Children Hospital",
+          "distance_m": 1400.0,
+          "available_capacity": 50,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true,
+          "specializations": [
+            "pediatrics",
+            "icu"
+          ]
+        },
+        {
+          "name": "Distant General Hospital",
+          "distance_m": 6500.0,
+          "available_capacity": 50,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true,
+          "specializations": [
+            "general"
+          ]
+        }
+      ],
+      "expected_top_name": "Egmore Children Hospital"
+    },
+    {
+      "case_id": "FAC-09",
+      "facility_type": "HOSPITAL",
+      "required_specializations": [
+        "trauma"
+      ],
+      "candidates": [
+        {
+          "name": "Closed Hospital",
+          "distance_m": 600.0,
+          "available_capacity": 100,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": false,
+          "specializations": [
+            "trauma"
+          ]
+        },
+        {
+          "name": "Stanley Medical College Hospital",
+          "distance_m": 2200.0,
+          "available_capacity": 70,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true,
+          "specializations": [
+            "trauma",
+            "general"
+          ]
+        }
+      ],
+      "expected_top_name": "Stanley Medical College Hospital"
+    },
+    {
+      "case_id": "FAC-10",
+      "facility_type": "HOSPITAL",
+      "required_specializations": [
+        "icu"
+      ],
+      "candidates": [
+        {
+          "name": "Zero-Bed Hospital",
+          "distance_m": 700.0,
+          "available_capacity": 0,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true,
+          "specializations": [
+            "icu"
+          ]
+        },
+        {
+          "name": "Royapettah Government Hospital",
+          "distance_m": 1750.0,
+          "available_capacity": 45,
+          "has_generator": true,
+          "wheelchair_access": true,
+          "is_operational": true,
+          "specializations": [
+            "icu",
+            "surgical"
+          ]
+        }
+      ],
+      "expected_top_name": "Royapettah Government Hospital"
+    }
+  ]
+}

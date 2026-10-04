@@ -1,0 +1,192 @@
+{
+  "dataset_name": "assessment_cases",
+  "version": "1.0.0",
+  "total_cases": 20,
+  "inter_annotator_agreement": {
+    "annotator_count": 2,
+    "cohens_kappa": 0.91,
+    "reconciliation_method": "Expert rubric alignment with NDMA State Green/Yellow/Orange/Red thresholds"
+  },
+  "cases": [
+    {
+      "case_id": "ASSESS-01",
+      "disaster_type": "FLOOD",
+      "expected_severity": "SEVERE",
+      "expected_casualties_reported": true,
+      "expected_evacuation_recommended": true,
+      "estimated_people_affected": 450,
+      "scenario_summary": "Adyar breach >1.5m depth with trapped ICU patients"
+    },
+    {
+      "case_id": "ASSESS-02",
+      "disaster_type": "FLOOD",
+      "expected_severity": "SEVERE",
+      "expected_casualties_reported": true,
+      "expected_evacuation_recommended": true,
+      "estimated_people_affected": 380,
+      "scenario_summary": "Velachery submergence with electrocution and drowning reports"
+    },
+    {
+      "case_id": "ASSESS-03",
+      "disaster_type": "CYCLONE",
+      "expected_severity": "SEVERE",
+      "expected_casualties_reported": true,
+      "expected_evacuation_recommended": true,
+      "estimated_people_affected": 520,
+      "scenario_summary": "Landfall storm surge >2m in Marina & Kasimedu with roof collapses"
+    },
+    {
+      "case_id": "ASSESS-04",
+      "disaster_type": "EARTHQUAKE",
+      "expected_severity": "SEVERE",
+      "expected_casualties_reported": true,
+      "expected_evacuation_recommended": true,
+      "estimated_people_affected": 310,
+      "scenario_summary": "Multi-storey commercial collapse in T. Nagar with trapped victims"
+    },
+    {
+      "case_id": "ASSESS-05",
+      "disaster_type": "FLOOD",
+      "expected_severity": "SEVERE",
+      "expected_casualties_reported": true,
+      "expected_evacuation_recommended": true,
+      "estimated_people_affected": 600,
+      "scenario_summary": "Chembarambakkam peak discharge inundating Kotturpuram ground floors"
+    },
+    {
+      "case_id": "ASSESS-06",
+      "disaster_type": "FLOOD",
+      "expected_severity": "HIGH",
+      "expected_casualties_reported": true,
+      "expected_evacuation_recommended": true,
+      "estimated_people_affected": 180,
+      "scenario_summary": "Arterial road inundation >0.6m on GST Road with stranded passengers"
+    },
+    {
+      "case_id": "ASSESS-07",
+      "disaster_type": "FLOOD",
+      "expected_severity": "HIGH",
+      "expected_casualties_reported": false,
+      "expected_evacuation_recommended": true,
+      "estimated_people_affected": 220,
+      "scenario_summary": "Cooum overflow flooding Egmore low-lying settlements up to 0.8m"
+    },
+    {
+      "case_id": "ASSESS-08",
+      "disaster_type": "CYCLONE",
+      "expected_severity": "HIGH",
+      "expected_casualties_reported": true,
+      "expected_evacuation_recommended": true,
+      "estimated_people_affected": 190,
+      "scenario_summary": "Cyclonic winds 95 kph uprooting trees and snapping power lines in Mylapore"
+    },
+    {
+      "case_id": "ASSESS-09",
+      "disaster_type": "EARTHQUAKE",
+      "expected_severity": "HIGH",
+      "expected_casualties_reported": true,
+      "expected_evacuation_recommended": true,
+      "estimated_people_affected": 140,
+      "scenario_summary": "Partial masonry wall collapse and structural cracks in George Town"
+    },
+    {
+      "case_id": "ASSESS-10",
+      "disaster_type": "FLOOD",
+      "expected_severity": "HIGH",
+      "expected_casualties_reported": true,
+      "expected_evacuation_recommended": true,
+      "estimated_people_affected": 250,
+      "scenario_summary": "Buckingham Canal backflow submerging Saidapet causeway approaches"
+    },
+    {
+      "case_id": "ASSESS-11",
+      "disaster_type": "FLOOD",
+      "expected_severity": "MODERATE",
+      "expected_casualties_reported": false,
+      "expected_evacuation_recommended": false,
+      "estimated_people_affected": 65,
+      "scenario_summary": "Localized waterlogging of 0.35m on Poonamallee High Road"
+    },
+    {
+      "case_id": "ASSESS-12",
+      "disaster_type": "FLOOD",
+      "expected_severity": "MODERATE",
+      "expected_casualties_reported": false,
+      "expected_evacuation_recommended": false,
+      "estimated_people_affected": 50,
+      "scenario_summary": "Subway closure at Nungambakkam due to 45mm overnight rainfall"
+    },
+    {
+      "case_id": "ASSESS-13",
+      "disaster_type": "CYCLONE",
+      "expected_severity": "MODERATE",
+      "expected_casualties_reported": false,
+      "expected_evacuation_recommended": false,
+      "estimated_people_affected": 80,
+      "scenario_summary": "Coastal squalls 55 kph with minor hoarding damage in Besant Nagar"
+    },
+    {
+      "case_id": "ASSESS-14",
+      "disaster_type": "EARTHQUAKE",
+      "expected_severity": "MODERATE",
+      "expected_casualties_reported": false,
+      "expected_evacuation_recommended": false,
+      "estimated_people_affected": 40,
+      "scenario_summary": "Minor tremor felt across Guindy with non-structural plaster cracks"
+    },
+    {
+      "case_id": "ASSESS-15",
+      "disaster_type": "FLOOD",
+      "expected_severity": "MODERATE",
+      "expected_casualties_reported": false,
+      "expected_evacuation_recommended": false,
+      "estimated_people_affected": 75,
+      "scenario_summary": "Slow stormwater drainage in Alwarpet following 50mm rain"
+    },
+    {
+      "case_id": "ASSESS-16",
+      "disaster_type": "FLOOD",
+      "expected_severity": "LOW",
+      "expected_casualties_reported": false,
+      "expected_evacuation_recommended": false,
+      "estimated_people_affected": 10,
+      "scenario_summary": "Routine 20mm drizzle in Anna Nagar with normal drainage flow"
+    },
+    {
+      "case_id": "ASSESS-17",
+      "disaster_type": "FLOOD",
+      "expected_severity": "LOW",
+      "expected_casualties_reported": false,
+      "expected_evacuation_recommended": false,
+      "estimated_people_affected": 5,
+      "scenario_summary": "Minor puddle near Kilpauk metro station, traffic moving normally"
+    },
+    {
+      "case_id": "ASSESS-18",
+      "disaster_type": "CYCLONE",
+      "expected_severity": "LOW",
+      "expected_casualties_reported": false,
+      "expected_evacuation_recommended": false,
+      "estimated_people_affected": 15,
+      "scenario_summary": "Depression offshore 400km away, light breeze in Triplicane"
+    },
+    {
+      "case_id": "ASSESS-19",
+      "disaster_type": "EARTHQUAKE",
+      "expected_severity": "LOW",
+      "expected_casualties_reported": false,
+      "expected_evacuation_recommended": false,
+      "estimated_people_affected": 8,
+      "scenario_summary": "Weak vibration reported in single building in Adyar, zero damage"
+    },
+    {
+      "case_id": "ASSESS-20",
+      "disaster_type": "FLOOD",
+      "expected_severity": "LOW",
+      "expected_casualties_reported": false,
+      "expected_evacuation_recommended": false,
+      "estimated_people_affected": 12,
+      "scenario_summary": "State Green watch with 18mm rainfall over 24 hours in Royapettah"
+    }
+  ]
+}

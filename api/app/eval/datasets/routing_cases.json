@@ -1,0 +1,725 @@
+{
+  "dataset_name": "routing_cases",
+  "version": "1.0.0",
+  "total_cases": 15,
+  "detour_cases": [
+    {
+      "case_id": "ROUTE-DETOUR-01",
+      "case_type": "detour",
+      "origin": {
+        "lon": 80.18,
+        "lat": 12.98
+      },
+      "destination": {
+        "lon": 80.285,
+        "lat": 13.085
+      },
+      "blocked_edge": [
+        1007,
+        11423
+      ],
+      "baseline_distance_m": 17506.8,
+      "expected_detour_distance_m": 19337.3,
+      "expected_hazard_avoided": true,
+      "expected_traverses_hazard": false
+    },
+    {
+      "case_id": "ROUTE-DETOUR-02",
+      "case_type": "detour",
+      "origin": {
+        "lon": 80.22,
+        "lat": 13.025
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 12.955
+      },
+      "blocked_edge": [
+        4002,
+        4001
+      ],
+      "baseline_distance_m": 10764.5,
+      "expected_detour_distance_m": 11846.5,
+      "expected_hazard_avoided": true,
+      "expected_traverses_hazard": false
+    },
+    {
+      "case_id": "ROUTE-DETOUR-03",
+      "case_type": "detour",
+      "origin": {
+        "lon": 80.255,
+        "lat": 13.068
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 12.975
+      },
+      "blocked_edge": [
+        1001,
+        4002
+      ],
+      "baseline_distance_m": 16635.9,
+      "expected_detour_distance_m": 15950.1,
+      "expected_hazard_avoided": true,
+      "expected_traverses_hazard": false
+    },
+    {
+      "case_id": "ROUTE-DETOUR-04",
+      "case_type": "detour",
+      "origin": {
+        "lon": 80.19,
+        "lat": 13.072
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 12.995
+      },
+      "blocked_edge": [
+        1001,
+        10294
+      ],
+      "baseline_distance_m": 28100.3,
+      "expected_detour_distance_m": 29675.6,
+      "expected_hazard_avoided": true,
+      "expected_traverses_hazard": false
+    },
+    {
+      "case_id": "ROUTE-DETOUR-05",
+      "case_type": "detour",
+      "origin": {
+        "lon": 80.24,
+        "lat": 13.078
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 13.015
+      },
+      "blocked_edge": [
+        10072,
+        10071
+      ],
+      "baseline_distance_m": 15529.1,
+      "expected_detour_distance_m": 15529.0,
+      "expected_hazard_avoided": true,
+      "expected_traverses_hazard": false
+    },
+    {
+      "case_id": "ROUTE-DETOUR-06",
+      "case_type": "detour",
+      "origin": {
+        "lon": 80.27,
+        "lat": 13.01
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 13.035
+      },
+      "blocked_edge": [
+        2003,
+        2002
+      ],
+      "baseline_distance_m": 27713.4,
+      "expected_detour_distance_m": 15831.7,
+      "expected_hazard_avoided": true,
+      "expected_traverses_hazard": false
+    },
+    {
+      "case_id": "ROUTE-DETOUR-07",
+      "case_type": "detour",
+      "origin": {
+        "lon": 80.28,
+        "lat": 13.06
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 13.055
+      },
+      "blocked_edge": [
+        1007,
+        2004
+      ],
+      "baseline_distance_m": 19825.2,
+      "expected_detour_distance_m": 20034.2,
+      "expected_hazard_avoided": true,
+      "expected_traverses_hazard": false
+    },
+    {
+      "case_id": "ROUTE-DETOUR-08",
+      "case_type": "detour",
+      "origin": {
+        "lon": 80.16,
+        "lat": 12.96
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 13.075
+      },
+      "blocked_edge": [
+        1006,
+        1007
+      ],
+      "baseline_distance_m": 30960.9,
+      "expected_detour_distance_m": 27702.4,
+      "expected_hazard_avoided": true,
+      "expected_traverses_hazard": false
+    },
+    {
+      "case_id": "ROUTE-DETOUR-09",
+      "case_type": "detour",
+      "origin": {
+        "lon": 80.215,
+        "lat": 12.965
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 13.095
+      },
+      "blocked_edge": [
+        11423,
+        1007
+      ],
+      "baseline_distance_m": 34282.3,
+      "expected_detour_distance_m": 34653.3,
+      "expected_hazard_avoided": true,
+      "expected_traverses_hazard": false
+    },
+    {
+      "case_id": "ROUTE-DETOUR-10",
+      "case_type": "detour",
+      "origin": {
+        "lon": 80.155,
+        "lat": 12.963
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 13.115
+      },
+      "blocked_edge": [
+        2003,
+        2002
+      ],
+      "baseline_distance_m": 36442.2,
+      "expected_detour_distance_m": 36913.4,
+      "expected_hazard_avoided": true,
+      "expected_traverses_hazard": false
+    }
+  ],
+  "enclosure_cases": [
+    {
+      "case_id": "ROUTE-ENC-01",
+      "case_type": "enclosure",
+      "origin": {
+        "lon": 80.235,
+        "lat": 13.04
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 12.987
+      },
+      "penalized_edges": [
+        [
+          1004,
+          1003
+        ],
+        [
+          1003,
+          1002
+        ],
+        [
+          1002,
+          1001
+        ],
+        [
+          1001,
+          10294
+        ],
+        [
+          10294,
+          10246
+        ],
+        [
+          10246,
+          10198
+        ],
+        [
+          10198,
+          10150
+        ],
+        [
+          10150,
+          10102
+        ],
+        [
+          10102,
+          10054
+        ],
+        [
+          10054,
+          10006
+        ],
+        [
+          10006,
+          10007
+        ],
+        [
+          10007,
+          10008
+        ],
+        [
+          1004,
+          1003
+        ],
+        [
+          1004,
+          1005
+        ],
+        [
+          1004,
+          10981
+        ]
+      ],
+      "expected_stage": 2,
+      "expected_traverses_hazard": true
+    },
+    {
+      "case_id": "ROUTE-ENC-02",
+      "case_type": "enclosure",
+      "origin": {
+        "lon": 80.24,
+        "lat": 13.078
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 13.015
+      },
+      "penalized_edges": [
+        [
+          2004,
+          2003
+        ],
+        [
+          2003,
+          2002
+        ],
+        [
+          2002,
+          2001
+        ],
+        [
+          2001,
+          10077
+        ],
+        [
+          10077,
+          10076
+        ],
+        [
+          10076,
+          10075
+        ],
+        [
+          10075,
+          10074
+        ],
+        [
+          10074,
+          10073
+        ],
+        [
+          10073,
+          10072
+        ],
+        [
+          10072,
+          10071
+        ],
+        [
+          10071,
+          10070
+        ],
+        [
+          10070,
+          10069
+        ],
+        [
+          10069,
+          10068
+        ],
+        [
+          10068,
+          10067
+        ],
+        [
+          10067,
+          10066
+        ],
+        [
+          10066,
+          10065
+        ],
+        [
+          10065,
+          10064
+        ],
+        [
+          10064,
+          10063
+        ],
+        [
+          10063,
+          10015
+        ],
+        [
+          2004,
+          2003
+        ],
+        [
+          2004,
+          1007
+        ],
+        [
+          2004,
+          11039
+        ]
+      ],
+      "expected_stage": 2,
+      "expected_traverses_hazard": true
+    },
+    {
+      "case_id": "ROUTE-ENC-03",
+      "case_type": "enclosure",
+      "origin": {
+        "lon": 80.17,
+        "lat": 12.97
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 13.043
+      },
+      "penalized_edges": [
+        [
+          4002,
+          1001
+        ],
+        [
+          1001,
+          1002
+        ],
+        [
+          1002,
+          1003
+        ],
+        [
+          1003,
+          1004
+        ],
+        [
+          1004,
+          1005
+        ],
+        [
+          1005,
+          1006
+        ],
+        [
+          1006,
+          1007
+        ],
+        [
+          1007,
+          2004
+        ],
+        [
+          2004,
+          2003
+        ],
+        [
+          2003,
+          2002
+        ],
+        [
+          2002,
+          2001
+        ],
+        [
+          2001,
+          10077
+        ],
+        [
+          10077,
+          10076
+        ],
+        [
+          10076,
+          10075
+        ],
+        [
+          10075,
+          10074
+        ],
+        [
+          10074,
+          10073
+        ],
+        [
+          10073,
+          10072
+        ],
+        [
+          10072,
+          10071
+        ],
+        [
+          10071,
+          10070
+        ],
+        [
+          10070,
+          10022
+        ],
+        [
+          4002,
+          4001
+        ],
+        [
+          4002,
+          1001
+        ],
+        [
+          4002,
+          10196
+        ]
+      ],
+      "expected_stage": 2,
+      "expected_traverses_hazard": true
+    },
+    {
+      "case_id": "ROUTE-ENC-04",
+      "case_type": "enclosure",
+      "origin": {
+        "lon": 80.155,
+        "lat": 12.971
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 13.071
+      },
+      "penalized_edges": [
+        [
+          10004,
+          10052
+        ],
+        [
+          10052,
+          10100
+        ],
+        [
+          10100,
+          10148
+        ],
+        [
+          10148,
+          10196
+        ],
+        [
+          10196,
+          4002
+        ],
+        [
+          4002,
+          1001
+        ],
+        [
+          1001,
+          1002
+        ],
+        [
+          1002,
+          1003
+        ],
+        [
+          1003,
+          1004
+        ],
+        [
+          1004,
+          1005
+        ],
+        [
+          1005,
+          1006
+        ],
+        [
+          1006,
+          1007
+        ],
+        [
+          1007,
+          2004
+        ],
+        [
+          2004,
+          2003
+        ],
+        [
+          2003,
+          2002
+        ],
+        [
+          2002,
+          2001
+        ],
+        [
+          2001,
+          10077
+        ],
+        [
+          10077,
+          10029
+        ],
+        [
+          10004,
+          10003
+        ],
+        [
+          10004,
+          10052
+        ],
+        [
+          10004,
+          10005
+        ]
+      ],
+      "expected_stage": 2,
+      "expected_traverses_hazard": true
+    },
+    {
+      "case_id": "ROUTE-ENC-05",
+      "case_type": "enclosure",
+      "origin": {
+        "lon": 80.155,
+        "lat": 12.999
+      },
+      "destination": {
+        "lon": 80.155,
+        "lat": 13.099
+      },
+      "penalized_edges": [
+        [
+          10011,
+          10012
+        ],
+        [
+          10012,
+          10013
+        ],
+        [
+          10013,
+          10014
+        ],
+        [
+          10014,
+          10015
+        ],
+        [
+          10015,
+          10016
+        ],
+        [
+          10016,
+          10017
+        ],
+        [
+          10017,
+          10018
+        ],
+        [
+          10018,
+          10019
+        ],
+        [
+          10019,
+          10020
+        ],
+        [
+          10020,
+          10021
+        ],
+        [
+          10021,
+          10022
+        ],
+        [
+          10022,
+          10023
+        ],
+        [
+          10023,
+          10024
+        ],
+        [
+          10024,
+          10025
+        ],
+        [
+          10025,
+          10026
+        ],
+        [
+          10026,
+          10027
+        ],
+        [
+          10027,
+          10028
+        ],
+        [
+          10028,
+          10029
+        ],
+        [
+          10029,
+          10030
+        ],
+        [
+          10030,
+          10031
+        ],
+        [
+          10031,
+          10032
+        ],
+        [
+          10032,
+          10033
+        ],
+        [
+          10033,
+          10034
+        ],
+        [
+          10034,
+          10035
+        ],
+        [
+          10035,
+          10036
+        ],
+        [
+          10011,
+          10010
+        ],
+        [
+          10011,
+          10059
+        ],
+        [
+          10011,
+          10012
+        ]
+      ],
+      "expected_stage": 2,
+      "expected_traverses_hazard": true
+    }
+  ]
+}

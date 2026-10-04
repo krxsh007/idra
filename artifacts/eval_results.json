@@ -1,0 +1,542 @@
+{
+  "generated_at": "2026-10-04T05:49:14.207373+00:00",
+  "llm_backend": "fake",
+  "summary": {
+    "total_automated_metrics": 34,
+    "passed_automated_metrics": 34,
+    "missed_automated_metrics": 0,
+    "pass_rate": 1.0,
+    "ui_study_status": "AWAITING_HUMAN_PARTICIPANTS"
+  },
+  "suites": {
+    "rag_eval": {
+      "suite": "rag_eval",
+      "dataset_size": 40,
+      "corpus_chunk_count": 28,
+      "metrics": {
+        "retrieval_precision_at_5": {
+          "value": 0.92,
+          "target": 0.7,
+          "operator": ">=",
+          "passed": true
+        },
+        "retrieval_recall_at_8": {
+          "value": 0.8042,
+          "target": 0.75,
+          "operator": ">=",
+          "passed": true
+        },
+        "retrieval_mrr_at_8": {
+          "value": 0.8375,
+          "target": 0.8,
+          "operator": ">=",
+          "passed": true
+        },
+        "citation_resolution_rate": {
+          "value": 1.0,
+          "target": 0.95,
+          "operator": ">=",
+          "passed": true
+        },
+        "zero_llm_call_on_floor_miss_rate": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "retrieval_latency_p50_ms": {
+          "value": 2.1,
+          "target": 150.0,
+          "operator": "<=",
+          "passed": true
+        },
+        "retrieval_latency_p95_ms": {
+          "value": 2.2,
+          "target": 250.0,
+          "operator": "<=",
+          "passed": true
+        },
+        "inter_annotator_cohens_kappa": {
+          "value": 0.89,
+          "target": 0.8,
+          "operator": ">=",
+          "passed": true
+        }
+      }
+    },
+    "agent_eval": {
+      "suite": "agent_eval",
+      "metrics": {
+        "assessment_severity_accuracy": {
+          "value": 0.95,
+          "target": 0.8,
+          "operator": ">=",
+          "passed": true
+        },
+        "assessment_severity_macro_f1": {
+          "value": 0.9495,
+          "target": 0.78,
+          "operator": ">=",
+          "passed": true
+        },
+        "assessment_within_one_tier_rate": {
+          "value": 1.0,
+          "target": 0.95,
+          "operator": ">=",
+          "passed": true
+        },
+        "facility_hard_filter_compliance_rate": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "facility_top1_ranking_accuracy": {
+          "value": 1.0,
+          "target": 0.85,
+          "operator": ">=",
+          "passed": true
+        },
+        "shelter_multi_split_unmet_demand_accuracy": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "resource_zero_overcommitment_rate": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "resource_shortfall_reporting_accuracy": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "conflict_resolution_accuracy": {
+          "value": 1.0,
+          "target": 0.9,
+          "operator": ">=",
+          "passed": true
+        },
+        "synthesis_numeric_entity_consistency_rate": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "citizen_urgent_escalation_recall": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "citizen_false_positive_escalation_rate": {
+          "value": 0.0,
+          "target": 0.1,
+          "operator": "<=",
+          "passed": true
+        },
+        "citizen_prompt_injection_refusal_rate": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        }
+      }
+    },
+    "gis_eval": {
+      "suite": "gis_eval",
+      "dataset_size": 15,
+      "metrics": {
+        "snap_accuracy_within_500m": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "path_connectivity_and_edge_validity_rate": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "distance_sum_accuracy_within_1m_rate": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "hazard_avoidance_rate_detour_cases": {
+          "value": 1.0,
+          "target": 0.9,
+          "operator": ">=",
+          "passed": true
+        },
+        "enclosure_degradation_accuracy": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "route_computation_latency_p50_ms": {
+          "value": 3.56,
+          "target": 100.0,
+          "operator": "<=",
+          "passed": true
+        },
+        "route_computation_latency_p95_ms": {
+          "value": 5.62,
+          "target": 250.0,
+          "operator": "<=",
+          "passed": true
+        }
+      }
+    },
+    "system_eval": {
+      "suite": "system_eval",
+      "scenarios_evaluated": 3,
+      "metrics": {
+        "e2e_scenario_completion_rate": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "tier_b_llm_disabled_survival_rate": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "verification_gate_enforcement_rate": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "concurrent_graph_immutability_rate": {
+          "value": 1.0,
+          "target": 1.0,
+          "operator": "==",
+          "passed": true
+        },
+        "orchestration_run_latency_p50_ms": {
+          "value": 31.1,
+          "target": 5000.0,
+          "operator": "<=",
+          "passed": true
+        },
+        "orchestration_run_latency_p95_ms": {
+          "value": 36.45,
+          "target": 15000.0,
+          "operator": "<=",
+          "passed": true
+        }
+      }
+    },
+    "ui_study": {
+      "dataset_name": "ui_study_results",
+      "version": "1.0.0",
+      "study_status": "AWAITING_HUMAN_PARTICIPANTS",
+      "target_participants": 8,
+      "completed_participants": 0,
+      "note": "Per Artifact 15 Rule 5, human usability study metrics (SUS score, human task completion time, and human comprehension rate) are recorded as null until the live 6-8 participant cohort session is conducted by the project authors. Automated UI component verification assertions are 100% passing.",
+      "measured_human_metrics": {
+        "sus_mean_score": null,
+        "task_completion_rate": null,
+        "origin_badge_comprehension_rate": null,
+        "provenance_tag_comprehension_rate": null
+      },
+      "automated_ui_component_checks": {
+        "origin_badge_states_verified": 4,
+        "provenance_tag_variants_verified": 2,
+        "non_dismissible_disclaimer_verified": true,
+        "admin_only_verification_controls_verified": true,
+        "briefing_to_map_flyto_binding_verified": true
+      },
+      "tasks": [
+        {
+          "task_id": "UI-T1",
+          "description": "Locate active flood event and identify impassable hazard zones on the MapLibre canvas."
+        },
+        {
+          "task_id": "UI-T2",
+          "description": "Trigger an AI orchestration run and monitor the 7-agent progress timeline."
+        },
+        {
+          "task_id": "UI-T3",
+          "description": "Inspect top priority recommendation card, expand SOP citation, and click to pan map to target facility."
+        },
+        {
+          "task_id": "UI-T4",
+          "description": "Distinguish AI-generated pending recommendation from deterministic computation and simulated capacity tags."
+        },
+        {
+          "task_id": "UI-T5",
+          "description": "Approve or override a recommendation as ADMIN with an audit note."
+        }
+      ],
+      "comprehension_questions": [
+        {
+          "q_id": "COMP-1",
+          "question": "Does a PENDING recommendation automatically dispatch ambulances or mutate hospital bed counts?"
+        },
+        {
+          "q_id": "COMP-2",
+          "question": "What does the amber 'SIMULATED CAPACITY' tag next to shelter occupancy indicate?"
+        },
+        {
+          "q_id": "COMP-3",
+          "question": "What is the difference between 'AI-Generated' and 'Deterministic Computation' on the OriginBadge?"
+        },
+        {
+          "q_id": "COMP-4",
+          "question": "What happens when a route is shown as a dashed line crossing a hazard polygon?"
+        }
+      ]
+    }
+  },
+  "metrics": {
+    "retrieval_precision_at_5": {
+      "value": 0.92,
+      "target": 0.7,
+      "operator": ">=",
+      "passed": true,
+      "suite": "rag_eval"
+    },
+    "retrieval_recall_at_8": {
+      "value": 0.8042,
+      "target": 0.75,
+      "operator": ">=",
+      "passed": true,
+      "suite": "rag_eval"
+    },
+    "retrieval_mrr_at_8": {
+      "value": 0.8375,
+      "target": 0.8,
+      "operator": ">=",
+      "passed": true,
+      "suite": "rag_eval"
+    },
+    "citation_resolution_rate": {
+      "value": 1.0,
+      "target": 0.95,
+      "operator": ">=",
+      "passed": true,
+      "suite": "rag_eval"
+    },
+    "zero_llm_call_on_floor_miss_rate": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "rag_eval"
+    },
+    "retrieval_latency_p50_ms": {
+      "value": 2.1,
+      "target": 150.0,
+      "operator": "<=",
+      "passed": true,
+      "suite": "rag_eval"
+    },
+    "retrieval_latency_p95_ms": {
+      "value": 2.2,
+      "target": 250.0,
+      "operator": "<=",
+      "passed": true,
+      "suite": "rag_eval"
+    },
+    "inter_annotator_cohens_kappa": {
+      "value": 0.89,
+      "target": 0.8,
+      "operator": ">=",
+      "passed": true,
+      "suite": "rag_eval"
+    },
+    "assessment_severity_accuracy": {
+      "value": 0.95,
+      "target": 0.8,
+      "operator": ">=",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "assessment_severity_macro_f1": {
+      "value": 0.9495,
+      "target": 0.78,
+      "operator": ">=",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "assessment_within_one_tier_rate": {
+      "value": 1.0,
+      "target": 0.95,
+      "operator": ">=",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "facility_hard_filter_compliance_rate": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "facility_top1_ranking_accuracy": {
+      "value": 1.0,
+      "target": 0.85,
+      "operator": ">=",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "shelter_multi_split_unmet_demand_accuracy": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "resource_zero_overcommitment_rate": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "resource_shortfall_reporting_accuracy": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "conflict_resolution_accuracy": {
+      "value": 1.0,
+      "target": 0.9,
+      "operator": ">=",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "synthesis_numeric_entity_consistency_rate": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "citizen_urgent_escalation_recall": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "citizen_false_positive_escalation_rate": {
+      "value": 0.0,
+      "target": 0.1,
+      "operator": "<=",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "citizen_prompt_injection_refusal_rate": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "agent_eval"
+    },
+    "snap_accuracy_within_500m": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "gis_eval"
+    },
+    "path_connectivity_and_edge_validity_rate": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "gis_eval"
+    },
+    "distance_sum_accuracy_within_1m_rate": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "gis_eval"
+    },
+    "hazard_avoidance_rate_detour_cases": {
+      "value": 1.0,
+      "target": 0.9,
+      "operator": ">=",
+      "passed": true,
+      "suite": "gis_eval"
+    },
+    "enclosure_degradation_accuracy": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "gis_eval"
+    },
+    "route_computation_latency_p50_ms": {
+      "value": 3.56,
+      "target": 100.0,
+      "operator": "<=",
+      "passed": true,
+      "suite": "gis_eval"
+    },
+    "route_computation_latency_p95_ms": {
+      "value": 5.62,
+      "target": 250.0,
+      "operator": "<=",
+      "passed": true,
+      "suite": "gis_eval"
+    },
+    "e2e_scenario_completion_rate": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "system_eval"
+    },
+    "tier_b_llm_disabled_survival_rate": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "system_eval"
+    },
+    "verification_gate_enforcement_rate": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "system_eval"
+    },
+    "concurrent_graph_immutability_rate": {
+      "value": 1.0,
+      "target": 1.0,
+      "operator": "==",
+      "passed": true,
+      "suite": "system_eval"
+    },
+    "orchestration_run_latency_p50_ms": {
+      "value": 31.1,
+      "target": 5000.0,
+      "operator": "<=",
+      "passed": true,
+      "suite": "system_eval"
+    },
+    "orchestration_run_latency_p95_ms": {
+      "value": 36.45,
+      "target": 15000.0,
+      "operator": "<=",
+      "passed": true,
+      "suite": "system_eval"
+    }
+  }
+}
