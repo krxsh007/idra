@@ -92,6 +92,7 @@ async def submit_report(
     )
     db.add(report)
     await db.flush()
+    await db.refresh(report)
 
     return _to_report_response(report)
 

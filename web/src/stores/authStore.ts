@@ -68,3 +68,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return user.role === role;
   },
 }));
+
+window.addEventListener('idra:unauthorized', () => {
+  useAuthStore.getState().logout();
+});
