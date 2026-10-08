@@ -47,6 +47,11 @@ class ApiClient {
       headers,
     });
 
+    if (response.status === 401 && token && endpoint !== '/auth/login') {
+      // Session expired: drop the stale token so the UI returns to the signed-out state
+      window.dispatchEvent(new Event('idra:unauthorized'));
+    }
+
     if (!response.ok) {
       let errorData: ApiError;
       try {
