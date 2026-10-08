@@ -7,20 +7,19 @@
    make migrate
    make seed
    ```
-2. Open the tactical frontend at `http://localhost:3000` (or API docs at `http://localhost:8000/docs`).
+2. Open the tactical frontend at `http://localhost:5173` (or API docs at `http://localhost:8000/docs`).
 
 ---
 
-## Step 1 — Scenario Activation (`/admin`)
-1. Sign in at `http://localhost:3000/login` using `admin@idra.local` / `AdminPass123!`.
-2. Navigate to `/admin` (**Admin Scenario & Hazard Console**).
-3. Activate **Scenario 1: 2026 Adyar River Basin Urban Flood (`chennai_flood`)**.
+## Step 1 — Scenarios (seeded by `make seed`)
+1. Sign in at `http://localhost:5173` via the **Sign In** button (use the Admin quick-fill, or `admin@example.com` with the `SEED_ADMIN_PASSWORD` from `.env`).
+2. The three canonical scenarios are already seeded as ACTIVE events; pick **Scenario 1: Chennai Adyar & Kotturpuram Monsoon Flood** in the **Active Event** dropdown.
 4. Observe the newly seeded event, 2 impassable/high-severity flood polygons along Kotturpuram and Saidapet, and 8 geocoded distress reports.
 
 ---
 
 ## Step 2 — Command Center Map & Multi-Agent Run (`/`)
-1. Open the **Command Center** (`http://localhost:3000/`).
+1. Open the **Command Center** (`http://localhost:5173/`).
 2. Inspect the MapLibre GL tactical map:
    - Red/Amber polygons mark inundated flood corridors.
    - Hospital and shelter pins display `REAL` (OSM location) and `SIMULATED` (capacity) `ProvenanceTag` badges.
@@ -39,8 +38,8 @@
 
 ---
 
-## Step 4 — Citizen Assistance & Urgent Escalation (`/citizen`)
-1. Open `http://localhost:3000/citizen` (**Public Citizen Emergency Assistant**).
+## Step 4 — Citizen Assistance & Urgent Escalation (chat drawer)
+1. Click **Citizen Emergency Assistant** (bottom-right of the dashboard).
 2. Switch language between **English (`en`)**, **Tamil (`ta`)**, and **Hindi (`hi`)**.
 3. Submit an informational query: *"What is the safe drinking water requirement and how do I purify flood water?"*
    - Observe the grounded answer citing Sphere/NDMA guidelines alongside nearest operational relief shelters outside hazard zones.
