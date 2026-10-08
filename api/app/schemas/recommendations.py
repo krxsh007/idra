@@ -14,7 +14,7 @@ class RecommendationCitationResponse(BaseModel):
 
     id: int
     document_title: str
-    source_type: str
+    source_type: str = "SOP"
     source_url: str | None = None
     section_path: str | None = None
     quoted_span: str | None = None
