@@ -6,7 +6,8 @@ from pathlib import Path
 import structlog
 
 from app.agents.base import AgentFailure, BaseAgent, RunContext
-from app.db.models.enums import AgentName, AgentStatus
+from app.core.config import settings
+from app.db.models.enums import AgentName, AgentStatus, SeverityLevel
 from app.llm.guards import check_forbidden_language, fence_untrusted_input
 from app.rag.retriever import retriever
 from app.schemas.agents.assessment import (
@@ -17,6 +18,9 @@ from app.schemas.agents.assessment import (
 )
 
 logger = structlog.get_logger(__name__)
+
+# Hashed fake-backend embeddings score lower than MiniLM, so the 0.35 floor is relaxed offline.
+FAKE_BACKEND_SCORE_FLOOR = 0.15
 
 PROMPT_TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "llm" / "prompts" / "assessment.md"
 
@@ -53,6 +57,7 @@ class DisasterAssessmentAgent(BaseAgent[AssessmentInput, AssessmentOutput]):
             query=query,
             top_k=5,
             disaster_type=input_data.event.disaster_type,
+            score_floor=FAKE_BACKEND_SCORE_FLOOR if settings.LLM_BACKEND == "fake" else None,
         )
 
         # 2. Invariant Check: No-LLM-Call Rule
@@ -140,12 +145,21 @@ class DisasterAssessmentAgent(BaseAgent[AssessmentInput, AssessmentOutput]):
         )
 
         # 5. Call LLM with automatic repair retry
-        output = await self.call_llm_with_repair(
-            ctx=ctx,
-            prompt=prompt,
-            system_instruction="You are an AI disaster response assessment expert.",
-            temperature=0.1,
-        )
+        try:
+            output = await self.call_llm_with_repair(
+                ctx=ctx,
+                prompt=prompt,
+                system_instruction="You are an AI disaster response assessment expert.",
+                temperature=0.1,
+            )
+        except Exception as e:
+            # Offline/dev mode has no real LLM: derive a conservative assessment from the evidence.
+            if settings.LLM_BACKEND != "fake" or "no fixture response" not in str(e):
+                raise
+            log.warning("llm_assessment_fallback", error=str(e))
+            output = self._deterministic_assessment(
+                input_data, chunks, sum_reported_affected, any_casualties_in_reports
+            )
 
         # 6. Post-processing Invariants & Guardrails
         # A. Forbidden language check
@@ -205,3 +219,53 @@ class DisasterAssessmentAgent(BaseAgent[AssessmentInput, AssessmentOutput]):
 
         output.visual_damage_indicator = input_data.visual_damage_indicator
         return output
+
+    @staticmethod
+    def _deterministic_assessment(
+        input_data: AssessmentInput,
+        chunks: list,  # type: ignore[type-arg]
+        sum_reported_affected: int,
+        any_casualties: bool,
+    ) -> AssessmentOutput:
+        """Rule-based assessment used when no LLM is available (offline development)."""
+        event = input_data.event
+        zones = input_data.hazard_zones
+        impassable = sum(1 for z in zones if z.is_impassable)
+        score = len(zones) + 2 * impassable + len(input_data.reports) + (3 if any_casualties else 0)
+        if score >= 10:
+            severity = SeverityLevel.SEVERE
+        elif score >= 6:
+            severity = SeverityLevel.HIGH
+        elif score >= 3:
+            severity = SeverityLevel.MODERATE
+        else:
+            severity = SeverityLevel.LOW
+
+        factors = [
+            f"{len(input_data.reports)} incident report(s) received for this event.",
+            f"{len(zones)} active hazard zone(s), {impassable} impassable.",
+        ]
+        if any_casualties:
+            factors.append("Casualties reported in field reports.")
+
+        citations = [
+            Citation(
+                source_type=CitationSourceType.SOP,
+                source_id=str(chunks[0].chunk_id),
+                snippet=chunks[0].content[:200],
+                relevance_note="Top relevant SOP guideline for disaster type.",
+            )
+        ]
+        return AssessmentOutput(
+            severity=severity,
+            confidence=0.6,
+            affected_area_summary=(
+                f"Rule-based assessment of {event.name} within {event.radius_m} m of the "
+                f"epicenter; human review required."
+            )[:600],
+            estimated_people_affected=sum_reported_affected,
+            casualties_reported=any_casualties,
+            evacuation_recommended=severity in (SeverityLevel.HIGH, SeverityLevel.SEVERE),
+            key_factors=factors,
+            citations=citations,
+        )

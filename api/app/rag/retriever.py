@@ -113,9 +113,11 @@ class HybridRetriever:
         include_stale: bool = False,
         vector_weight: float = 0.7,
         lexical_weight: float = 0.3,
+        score_floor: float | None = None,
     ) -> list[RetrievedChunk]:
         """Perform hybrid vector + lexical search over pgvector chunks."""
         k = top_k or self.default_top_k
+        floor = self.score_floor if score_floor is None else score_floor
         query_vector = embedding_service.embed_text(query)
 
         # Base query joining chunks with documents
@@ -157,7 +159,7 @@ class HybridRetriever:
             # Combined hybrid score
             hybrid_score = (vector_weight * vector_score) + (lexical_weight * lexical_score)
 
-            if hybrid_score >= self.score_floor:
+            if hybrid_score >= floor:
                 scored_chunks.append(
                     RetrievedChunk(
                         chunk_id=chunk_row.id,

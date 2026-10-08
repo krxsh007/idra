@@ -37,7 +37,10 @@ make test
 make eval
 ```
 
-### 3. Default Seeded Credentials
+### 3. Offline Mode vs. Gemini
+`.env` ships with `LLM_BACKEND=fake`: embeddings are hashed and the Disaster Assessment agent uses a rule-based fallback, so the whole pipeline runs with no API key. For real LLM prose and MiniLM embeddings set `LLM_BACKEND=gemini` plus `GEMINI_API_KEY`, then re-run `make seed` (re-ingests the KB) and `docker compose up -d --force-recreate api`.
+
+### 4. Default Seeded Credentials
 | Role | Email | Password |
 |---|---|---|
 | `ADMIN` | `admin@example.com` | `SEED_ADMIN_PASSWORD` from `.env` |
