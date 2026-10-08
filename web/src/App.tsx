@@ -75,6 +75,12 @@ const Dashboard: React.FC = () => {
     enabled: !!selectedEvent?.id,
   });
 
+  // Fetch facilities for map display
+  const { data: facilitiesData } = useQuery({
+    queryKey: ['facilities'],
+    queryFn: () => api.getFacilities(),
+  });
+
   const handleStartLocationPick = (callback: (coords: EpicenterPoint) => void) => {
     setOnPickCallback(() => callback);
     setIsPickingLocation(true);
@@ -104,10 +110,26 @@ const Dashboard: React.FC = () => {
       <div className="flex-1 flex overflow-hidden relative">
         {/* Geospatial Map Area */}
         <main className="flex-1 relative h-full">
+          {isPickingLocation && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-blue-600/95 text-white text-xs font-medium px-4 py-2 rounded-full shadow-xl border border-blue-400/50 flex items-center gap-3">
+              <span>Click anywhere inside the dashed blue Chennai study area box to select coordinates</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsPickingLocation(false);
+                  setOnPickCallback(null);
+                }}
+                className="underline hover:text-blue-200"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
           <MapContainer
             activeEvent={selectedEvent}
             hazardZones={hazardZonesData?.items || []}
             reports={reportsData?.items || []}
+            facilities={facilitiesData?.items || []}
             onMapClick={handleMapClick}
             isPickingLocation={isPickingLocation}
             focusCoordinates={focusCoordinates}
@@ -182,12 +204,25 @@ const Dashboard: React.FC = () => {
       {/* Modals */}
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
 
-      <EventCreateModal
-        isOpen={isNewEventOpen}
-        onClose={() => setIsNewEventOpen(false)}
-        onSuccess={() => refetchEvents()}
-        onStartLocationPick={handleStartLocationPick}
-      />
+      <div className={isPickingLocation ? 'hidden' : ''}>
+        <EventCreateModal
+          isOpen={isNewEventOpen}
+          onClose={() => setIsNewEventOpen(false)}
+          onSuccess={() => refetchEvents()}
+          onStartLocationPick={handleStartLocationPick}
+        />
+
+        <ReportSubmissionModal
+          isOpen={isSubmitReportOpen}
+          eventId={selectedEvent?.id}
+          onClose={() => setIsSubmitReportOpen(false)}
+          onSuccess={() => {
+            refetchReports();
+            refetchEvents();
+          }}
+          onStartLocationPick={handleStartLocationPick}
+        />
+      </div>
 
       {selectedEvent && (
         <HazardZoneCreateModal
@@ -197,17 +232,6 @@ const Dashboard: React.FC = () => {
           onSuccess={() => refetchHazards()}
         />
       )}
-
-      <ReportSubmissionModal
-        isOpen={isSubmitReportOpen}
-        eventId={selectedEvent?.id}
-        onClose={() => setIsSubmitReportOpen(false)}
-        onSuccess={() => {
-          refetchReports();
-          refetchEvents();
-        }}
-        onStartLocationPick={handleStartLocationPick}
-      />
     </div>
   );
 };

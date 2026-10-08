@@ -5,6 +5,7 @@ import {
   DisasterEvent,
   EventCreateInput,
   EventListResponse,
+  FacilityListResponse,
   HazardZone,
   HazardZoneCreateInput,
   HazardZoneListResponse,
@@ -157,6 +158,11 @@ class ApiClient {
   // GeoJSON Multi-layer
   async getEventGeoJson(eventId: string): Promise<Record<string, unknown>> {
     return this.request<Record<string, unknown>>(`/events/${eventId}/geojson`);
+  }
+
+  // Facilities
+  async getFacilities(): Promise<FacilityListResponse> {
+    return this.request<FacilityListResponse>('/facilities?limit=100');
   }
 }
 
