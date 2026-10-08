@@ -40,9 +40,8 @@ make eval
 ### 3. Default Seeded Credentials
 | Role | Email | Password |
 |---|---|---|
-| `ADMIN` | `admin@idra.local` | `AdminPass123!` |
-| `RESPONDER` | `responder@idra.local` | `ResponderPass123!` |
-| `CITIZEN` | `citizen@idra.local` | `CitizenPass123!` |
+| `ADMIN` | `admin@example.com` | `SEED_ADMIN_PASSWORD` from `.env` |
+| `RESPONDER` | `responder1@example.com` | `responder_password_1` |
 
 ---
 
