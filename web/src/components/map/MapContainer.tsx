@@ -53,30 +53,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
 
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: {
-        version: 8,
-        sources: {
-          carto_dark: {
-            type: 'raster',
-            tiles: [
-              'https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
-              'https://cartodb-basemaps-b.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
-              'https://cartodb-basemaps-c.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
-            ],
-            tileSize: 256,
-            attribution: '&copy; OpenStreetMap &copy; CARTO',
-          },
-        },
-        layers: [
-          {
-            id: 'carto-dark-layer',
-            type: 'raster',
-            source: 'carto_dark',
-            minzoom: 0,
-            maxzoom: 19,
-          },
-        ],
-      },
+      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
       center: center,
       zoom: zoom,
     });

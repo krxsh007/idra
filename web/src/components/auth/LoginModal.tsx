@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Lock, Mail, AlertCircle, LogIn, KeyRound } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../stores/authStore';
 
 interface LoginModalProps {
@@ -10,6 +11,7 @@ interface LoginModalProps {
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const queryClient = useQueryClient();
   const { login, isLoading, error } = useAuthStore();
 
   if (!isOpen) return null;
@@ -18,6 +20,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     e.preventDefault();
     try {
       await login(email, password);
+      await queryClient.invalidateQueries();
       onClose();
     } catch {
       // Error handled by store
@@ -115,7 +118,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             </button>
             <button
               type="button"
-              onClick={() => handleQuickFill('responder1@example.com', 'admin_password_123')}
+              onClick={() => handleQuickFill('responder1@example.com', 'responder_password_1')}
               className="flex-1 py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 transition"
             >
               Responder
