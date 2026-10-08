@@ -7,27 +7,28 @@ down:
 	docker compose down
 
 test:
-	PYTHONPATH=api:. pytest tests/ -v
+	PYTHONPATH=api:. .venv/bin/pytest tests/ -v
 
 lint:
-	ruff check api/ scripts/ tests/
-	ruff format --check api/ scripts/ tests/
+	.venv/bin/ruff check api/ scripts/ tests/
+	.venv/bin/ruff format --check api/ scripts/ tests/
 
 format:
-	ruff format api/ scripts/ tests/
-	ruff check --fix api/ scripts/ tests/
+	.venv/bin/ruff format api/ scripts/ tests/
+	.venv/bin/ruff check --fix api/ scripts/ tests/
 
 mypy:
-	PYTHONPATH=api:. mypy api/app scripts/
+	PYTHONPATH=api:. .venv/bin/mypy api/app scripts/
 
 migrate:
-	cd api && alembic upgrade head
+	cd api && ../.venv/bin/alembic upgrade head
 
 seed:
 	PYTHONPATH=api:. .venv/bin/python scripts/seed_users.py
 	PYTHONPATH=api:. .venv/bin/python scripts/load_facilities.py
 	PYTHONPATH=api:. .venv/bin/python scripts/load_resources.py
 	PYTHONPATH=api:. .venv/bin/python scripts/seed_scenarios.py
+	PYTHONPATH=api:. .venv/bin/python scripts/ingest_kb.py
 	PYTHONPATH=api:. .venv/bin/python scripts/seed_eval_set.py
 
 eval:
