@@ -1,4 +1,4 @@
-.PHONY: up down test lint format mypy migrate seed eval smoke types clean
+.PHONY: up down test lint format mypy migrate seed eval smoke clean
 
 up:
 	docker compose up -d
@@ -36,9 +36,6 @@ eval:
 
 smoke:
 	bash scripts/smoke.sh
-
-types:
-	PYTHONPATH=api:. .venv/bin/python scripts/export_openapi.py
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
