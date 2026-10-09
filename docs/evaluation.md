@@ -1,7 +1,7 @@
 # IDRA Testing & Evaluation Report (Artifact 13)
 
 > **Generated automatically by `scripts/run_eval.py` from measured harness output (`artifacts/eval_results.json`).**
-> - **Timestamp (UTC):** `2026-10-08T19:43:40.372951+00:00`
+> - **Timestamp (UTC):** `2026-10-09T05:12:00.789826+00:00`
 > - **LLM Backend:** `fake`
 > - **Automated Metrics Passed:** `34 / 34` (`100.0%`)
 > - **UI Human Cohort Status:** `AWAITING_HUMAN_PARTICIPANTS`
@@ -30,8 +30,8 @@ Measured over `retrieval_queries.json` (40 in-domain queries + 5 out-of-domain f
 | `retrieval_mrr_at_8` | `0.8375` | `>= 0.8` | **PASS** |
 | `citation_resolution_rate` | `1.0` | `>= 0.95` | **PASS** |
 | `zero_llm_call_on_floor_miss_rate` | `1.0` | `== 1.0` | **PASS** |
-| `retrieval_latency_p50_ms` | `2.1` | `<= 150.0` | **PASS** |
-| `retrieval_latency_p95_ms` | `2.2` | `<= 250.0` | **PASS** |
+| `retrieval_latency_p50_ms` | `2.12` | `<= 150.0` | **PASS** |
+| `retrieval_latency_p95_ms` | `2.23` | `<= 250.0` | **PASS** |
 | `inter_annotator_cohens_kappa` | `0.89` | `>= 0.8` | **PASS** |
 
 ---
@@ -69,8 +69,8 @@ Measured over `routing_cases.json` (10 detour cases + 5 hazard-enclosure cases) 
 | `distance_sum_accuracy_within_1m_rate` | `1.0` | `== 1.0` | **PASS** |
 | `hazard_avoidance_rate_detour_cases` | `1.0` | `>= 0.9` | **PASS** |
 | `enclosure_degradation_accuracy` | `1.0` | `== 1.0` | **PASS** |
-| `route_computation_latency_p50_ms` | `3.72` | `<= 100.0` | **PASS** |
-| `route_computation_latency_p95_ms` | `5.7` | `<= 250.0` | **PASS** |
+| `route_computation_latency_p50_ms` | `3.59` | `<= 100.0` | **PASS** |
+| `route_computation_latency_p95_ms` | `5.55` | `<= 250.0` | **PASS** |
 
 ---
 
@@ -84,8 +84,8 @@ Measured over full orchestration runs on the 3 canonical scenarios (`chennai_flo
 | `tier_b_llm_disabled_survival_rate` | `1.0` | `== 1.0` | **PASS** |
 | `verification_gate_enforcement_rate` | `1.0` | `== 1.0` | **PASS** |
 | `concurrent_graph_immutability_rate` | `1.0` | `== 1.0` | **PASS** |
-| `orchestration_run_latency_p50_ms` | `28.88` | `<= 5000.0` | **PASS** |
-| `orchestration_run_latency_p95_ms` | `35.69` | `<= 15000.0` | **PASS** |
+| `orchestration_run_latency_p50_ms` | `27.5` | `<= 5000.0` | **PASS** |
+| `orchestration_run_latency_p95_ms` | `32.12` | `<= 15000.0` | **PASS** |
 
 ---
 

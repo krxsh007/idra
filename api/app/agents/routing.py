@@ -3,9 +3,11 @@ from __future__ import annotations
 import uuid
 
 import structlog
+from geoalchemy2.shape import to_shape
 
 from app.agents.base import AgentFailure, BaseAgent, RunContext
 from app.db.models.enums import AgentName, AgentStatus
+from app.db.models.facilities import Facility
 from app.gis.graph import road_graph_manager
 from app.gis.routing import hazard_router
 from app.gis.spatial import get_blocked_edges
@@ -18,6 +20,22 @@ from app.schemas.agents.routing import (
 from app.schemas.events import EpicenterPoint
 
 logger = structlog.get_logger(__name__)
+
+
+async def _facility_point(
+    ctx: RunContext, facility_id: uuid.UUID, fallback: EpicenterPoint
+) -> EpicenterPoint:
+    """Return the facility location, or a nearby fallback point when no database is available."""
+    if ctx.db is None:
+        return fallback
+    try:
+        fac = await ctx.db.get(Facility, facility_id)
+        if fac is not None and fac.location is not None:
+            pt = to_shape(fac.location)
+            return EpicenterPoint(lon=pt.x, lat=pt.y)
+    except Exception as e:  # pragma: no cover - defensive, falls back to the legacy behaviour
+        logger.warning("facility_location_lookup_failed", error=str(e))
+    return fallback
 
 
 class RoutingAgent(BaseAgent[RoutingInput, RoutingOutput]):
@@ -64,9 +82,13 @@ class RoutingAgent(BaseAgent[RoutingInput, RoutingOutput]):
 
         # 2. Compute route from event epicenter to shelter
         if target_shelter:
-            dest_pt = EpicenterPoint(
-                lon=input_data.event.epicenter.lon + 0.01,
-                lat=input_data.event.epicenter.lat + 0.01,
+            dest_pt = await _facility_point(
+                ctx,
+                target_shelter.facility_id,
+                EpicenterPoint(
+                    lon=input_data.event.epicenter.lon + 0.01,
+                    lat=input_data.event.epicenter.lat + 0.01,
+                ),
             )
             route_res = hazard_router.compute_route(
                 origin_lon=input_data.event.epicenter.lon,
@@ -105,9 +127,10 @@ class RoutingAgent(BaseAgent[RoutingInput, RoutingOutput]):
             if not dest_facility:
                 continue
 
-            dest_pt = EpicenterPoint(
-                lon=rep.location.lon + 0.01,
-                lat=rep.location.lat + 0.01,
+            dest_pt = await _facility_point(
+                ctx,
+                dest_facility.facility_id,
+                EpicenterPoint(lon=rep.location.lon + 0.01, lat=rep.location.lat + 0.01),
             )
             res = hazard_router.compute_route(
                 origin_lon=rep.location.lon,

@@ -18,7 +18,7 @@ The **Intelligent Disaster Response Assistant (IDRA)** is a multi-agent decision
 │                        FastAPI Application Layer (api/)                      │
 │  • JWT + RBAC (CITIZEN | RESPONDER | ADMIN)                                  │
 │  • Rate Limiting & Prompt-Injection Sanitization                             │
-│  • SSE Run Stream & Weather Sidecar (Open-Meteo + Redis TTL Cache)           │
+│  • SSE Run Stream & Weather Sidecar (Open-Meteo, off by default)             │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                   Orchestration Engine & 7-Agent Pipeline                    │
 │  Stage 1: DisasterAssessmentAgent (Tier A: RAG + LLM)                        │
@@ -30,8 +30,8 @@ The **Intelligent Disaster Response Assistant (IDRA)** is a multi-agent decision
 │   Hybrid RAG Engine    │   GIS & Routing Engine    │   Persistence Layer     │
 │  • Markdown Parser     │  • NetworkX Road Graph    │  • PostgreSQL 16        │
 │  • Token Chunker       │    (1,748 nodes, 6,820 e) │  • PostGIS 3.4          │
-│  • 384-d Embeddings    │  • PostGIS ST_Intersects  │  • pgvector 0.7         │
-│  • Cosine + BM25       │  • 3-Stage Hazard-Aware   │  • Redis 7 Cache        │
+│  • 384-d Embeddings    │  • PostGIS ST_Intersects  │  • pgvector 0.8         │
+│  • Cosine + BM25       │  • Hazard-Aware Dijkstra   │  • (no external cache)  │
 │    (0.70 / 0.30)       │    Dijkstra               │                         │
 └────────────────────────┴───────────────────────────┴─────────────────────────┘
 ```
@@ -48,7 +48,7 @@ IDRA strictly separates its 7 specialized agents into two reliability tiers so t
   - `CitizenAssistantAgent`: Answers public queries strictly grounded in retrieved KB chunks (`RAG_SCORE_FLOOR = 0.35`); short-circuits with zero LLM calls when retrieval confidence is below floor.
 - **Tier B (100% Deterministic — Zero LLM Calls):**
   - `FacilityRecommendationAgent`: Filters and ranks hospitals and relief shelters using PostGIS spatial queries and multi-criteria scoring.
-  - `RoutingAgent`: Computes hazard-avoiding evacuation and ambulance routes via 3-stage weighted Dijkstra over the Chennai road network.
+  - `RoutingAgent`: Computes hazard-avoiding evacuation and ambulance routes via weighted Dijkstra (blocked edges impassable, soft penalties for hazards) over the Chennai road network.
   - `ResourceAllocationAgent`: Allocates available staging units using a run-local ledger that prevents double-dispatch across zones.
 
 ---
