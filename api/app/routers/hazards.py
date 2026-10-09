@@ -91,6 +91,7 @@ async def create_hazard_zone(
     )
     db.add(zone)
     await db.flush()
+    await db.refresh(zone)
 
     # 4. Log audit
     await log_mutation(
@@ -181,6 +182,7 @@ async def update_hazard_zone(
         zone.source_note = req.source_note
 
     await db.flush()
+    await db.refresh(zone)
 
     after_state = {
         "severity": zone.severity.value,
