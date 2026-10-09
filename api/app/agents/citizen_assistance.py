@@ -278,6 +278,18 @@ class CitizenAssistanceAgent(BaseAgent[CitizenQueryRequest, CitizenQueryResponse
             except Exception as e:
                 log.warning("llm_generation_failed_degrading_to_fallback", error=str(e))
                 answer_text = SAFE_FALLBACK_TEXT
+                # Offline dev mode (no LLM): answer extractively from the retrieved guideline.
+                if settings.LLM_BACKEND == "fake" and "no fixture response" in str(e):
+                    extract = " ".join(chunks[0].content.replace("#", " ").split())[:350]
+                    parts = [f"According to {chunks[0].doc_title}: {extract}"]
+                    if nearest_facs:
+                        nf = nearest_facs[0]
+                        parts.append(
+                            f"Nearest facility: {nf.name} ({nf.distance_m / 1000:.1f} km away)."
+                        )
+                    candidate = " ".join(parts)
+                    if not check_output_safety(candidate, allowed_urls):
+                        answer_text = candidate
 
         # If urgent, ensure escalation guidance is stated in answer
         if is_escalated and "112" not in answer_text:

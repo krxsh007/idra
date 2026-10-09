@@ -98,6 +98,7 @@ async def create_event(
     )
     db.add(event)
     await db.flush()
+    await db.refresh(event)
 
     # 4. Audit log
     await log_mutation(
@@ -226,6 +227,7 @@ async def update_event(
         event.closed_at = req.closed_at
 
     await db.flush()
+    await db.refresh(event)
 
     after_state = {
         "status": event.status.value,
