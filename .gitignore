@@ -55,3 +55,6 @@ web/dist-ssr/
 .vscode/
 *.swp
 *.swo
+
+# Generated project report (deliverable, not source)
+report/
