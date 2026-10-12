@@ -30,6 +30,21 @@ const CHENNAI_BBOX_GEOJSON = {
   },
 };
 
+const toHazardCollection = (zones: HazardZone[]) => ({
+  type: 'FeatureCollection' as const,
+  features: zones.map((z) => ({
+    type: 'Feature' as const,
+    properties: {
+      id: z.id,
+      label: z.label,
+      hazard_type: z.hazard_type,
+      severity: z.severity,
+      is_impassable: z.is_impassable,
+    },
+    geometry: z.geometry,
+  })),
+});
+
 export const MapContainer: React.FC<MapContainerProps> = ({
   activeEvent,
   hazardZones = [],
@@ -44,6 +59,8 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const epicenterMarkerRef = useRef<Marker | null>(null);
   const reportMarkersRef = useRef<Marker[]>([]);
   const facilityMarkersRef = useRef<Marker[]>([]);
+  // Latest hazard data, applied once the map's sources exist (data can arrive before the style loads)
+  const hazardZonesRef = useRef<HazardZone[]>(hazardZones);
 
   const { center, zoom, showBBox, showHazards, showReports, showFacilities } = useMapStore();
 
@@ -142,6 +159,17 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         },
       });
 
+      (map.getSource('hazard-zones-src') as maplibregl.GeoJSONSource).setData(
+        toHazardCollection(hazardZonesRef.current)
+      );
+      const { showBBox: bboxVisible, showHazards: hazardsVisible } = useMapStore.getState();
+      ['study-area-bbox-fill', 'study-area-bbox-line'].forEach((id) =>
+        map.setLayoutProperty(id, 'visibility', bboxVisible ? 'visible' : 'none')
+      );
+      ['hazard-zones-fill', 'hazard-zones-line'].forEach((id) =>
+        map.setLayoutProperty(id, 'visibility', hazardsVisible ? 'visible' : 'none')
+      );
+
       // Interactive popup on clicking hazard zones
       map.on('click', 'hazard-zones-fill', (e) => {
         if (!e.features || !e.features[0]) return;
@@ -201,26 +229,14 @@ export const MapContainer: React.FC<MapContainerProps> = ({
 
   // Update Hazard Zones GeoJSON data
   useEffect(() => {
+    hazardZonesRef.current = hazardZones;
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
 
+    // isStyleLoaded() is false while tiles load or the camera animates, so don't gate on it;
+    // if the source doesn't exist yet, the 'load' handler applies the latest data instead.
     const source = map.getSource('hazard-zones-src') as maplibregl.GeoJSONSource | undefined;
-    if (source) {
-      source.setData({
-        type: 'FeatureCollection',
-        features: hazardZones.map((z) => ({
-          type: 'Feature',
-          properties: {
-            id: z.id,
-            label: z.label,
-            hazard_type: z.hazard_type,
-            severity: z.severity,
-            is_impassable: z.is_impassable,
-          },
-          geometry: z.geometry,
-        })),
-      });
-    }
+    source?.setData(toHazardCollection(hazardZones));
   }, [hazardZones]);
 
   // Update Active Event Epicenter Marker with Pulsing Animation
@@ -336,7 +352,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   // Toggle Layer Visibilities
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
 
     if (map.getLayer('study-area-bbox-fill') && map.getLayer('study-area-bbox-line')) {
       const visibility = showBBox ? 'visible' : 'none';
