@@ -286,6 +286,10 @@ class SynthesisAgent(BaseAgent[SynthesisInput, SynthesisOutput]):
 
                         if self._validate_consistency(res, allowed_facilities):
                             res.conflicts_noted = conflicts_noted
+                            # Provenance is decided here, not by the model: it sees the
+                            # deterministic draft (origin included) and tends to copy it.
+                            for rec in res.recommendations:
+                                rec.origin = "AI_GENERATED"
                             return res
                 except Exception as e:
                     log.warning("synthesis_llm_attempt_failed", attempt=attempt, error=str(e))
