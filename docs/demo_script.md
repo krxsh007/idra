@@ -39,6 +39,9 @@ not a failure. For a fully offline demo, set `LLM_BACKEND=fake`, run `make seed`
 1. Scroll to **Prioritized Briefing**: recommendations ordered by priority (life safety first), each with an
    origin badge (AI-generated vs deterministic) and provenance tag (REAL vs SIMULATED data).
 2. Click the locate action on a recommendation card: the map flies to the target zone or facility.
+3. Point at the **Evacuation Routes** on the map: lines from each rescue zone (amber dot) to its hospital (blue)
+   or shelter (green), computed by hazard-avoiding Dijkstra. In Scenario 1 the shelter route visibly detours
+   around the severe flood polygon. Click a route for distance, travel time, and whether hazards were avoided.
 
 ## Step 4 — Human-in-the-loop verification (2 min)
 1. Every recommendation starts as **PENDING**; nothing is committed automatically.

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import maplibregl, { Map as MapLibreMap, Marker, Popup } from 'maplibre-gl';
-import { DisasterEvent, Facility, HazardZone, IncidentReport } from '../../types/api';
+import { DisasterEvent, EvacuationRoute, Facility, HazardZone, IncidentReport } from '../../types/api';
 import { useMapStore } from '../../stores/mapStore';
 
 interface MapContainerProps {
@@ -8,6 +8,7 @@ interface MapContainerProps {
   hazardZones?: HazardZone[];
   reports?: IncidentReport[];
   facilities?: Facility[];
+  routes?: EvacuationRoute[];
   onMapClick?: (coords: { lon: number; lat: number }) => void;
   isPickingLocation?: boolean;
   focusCoordinates?: { lon: number; lat: number } | null;
@@ -45,11 +46,52 @@ const toHazardCollection = (zones: HazardZone[]) => ({
   })),
 });
 
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+// Route lines coloured by destination type (matching the H/S markers), plus a start point per route.
+const toRouteCollections = (routes: EvacuationRoute[], facilities: Facility[]) => {
+  const facilityTypes = new Map(facilities.map((f) => [f.id, f.facility_type]));
+  // A rescue zone that snaps to its destination's road node yields a zero-length route; nothing to draw.
+  const drawable = routes.filter((r) => r.geometry?.coordinates?.length >= 2 && r.distance_m > 0);
+  return {
+    lines: {
+      type: 'FeatureCollection' as const,
+      features: drawable.map((r) => ({
+        type: 'Feature' as const,
+        properties: {
+          destination_name: r.destination_name,
+          destination_type:
+            (r.destination_facility_id && facilityTypes.get(r.destination_facility_id)) || 'OTHER',
+          distance_km: (r.distance_m / 1000).toFixed(1),
+          duration_min: Math.max(1, Math.round(r.duration_s / 60)),
+          hazard_avoided: r.hazard_avoided,
+          traverses_hazard: r.traverses_hazard,
+          blocked_edges_avoided: r.blocked_edges_avoided,
+          rationale: r.rationale,
+        },
+        geometry: r.geometry,
+      })),
+    },
+    origins: {
+      type: 'FeatureCollection' as const,
+      features: drawable.map((r) => ({
+        type: 'Feature' as const,
+        properties: {},
+        geometry: { type: 'Point' as const, coordinates: r.geometry.coordinates[0] },
+      })),
+    },
+  };
+};
+
+const ROUTE_LAYER_IDS = ['evac-routes-casing', 'evac-routes-line', 'evac-route-origins'];
+
 export const MapContainer: React.FC<MapContainerProps> = ({
   activeEvent,
   hazardZones = [],
   reports = [],
   facilities = [],
+  routes = [],
   onMapClick,
   isPickingLocation = false,
   focusCoordinates = null,
@@ -61,8 +103,11 @@ export const MapContainer: React.FC<MapContainerProps> = ({
   const facilityMarkersRef = useRef<Marker[]>([]);
   // Latest hazard data, applied once the map's sources exist (data can arrive before the style loads)
   const hazardZonesRef = useRef<HazardZone[]>(hazardZones);
+  const routeDataRef = useRef(toRouteCollections(routes, facilities));
+  const routePopupRef = useRef<Popup | null>(null);
 
-  const { center, zoom, showBBox, showHazards, showReports, showFacilities } = useMapStore();
+  const { center, zoom, showBBox, showHazards, showReports, showFacilities, showRoutes } =
+    useMapStore();
 
   // Initialize Map
   useEffect(() => {
@@ -170,6 +215,83 @@ export const MapContainer: React.FC<MapContainerProps> = ({
         map.setLayoutProperty(id, 'visibility', hazardsVisible ? 'visible' : 'none')
       );
 
+      // 3. Evacuation routes from the latest run (drawn above hazards so detours stay visible)
+      map.addSource('evac-routes-src', { type: 'geojson', data: routeDataRef.current.lines });
+      map.addSource('evac-route-origins-src', { type: 'geojson', data: routeDataRef.current.origins });
+
+      map.addLayer({
+        id: 'evac-routes-casing',
+        type: 'line',
+        source: 'evac-routes-src',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#020617', 'line-width': 7, 'line-opacity': 0.8 },
+      });
+
+      map.addLayer({
+        id: 'evac-routes-line',
+        type: 'line',
+        source: 'evac-routes-src',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': [
+            'match',
+            ['get', 'destination_type'],
+            'HOSPITAL',
+            '#3b82f6',
+            'SHELTER',
+            '#22c55e',
+            '#22d3ee',
+          ],
+          'line-width': 4,
+        },
+      });
+
+      map.addLayer({
+        id: 'evac-route-origins',
+        type: 'circle',
+        source: 'evac-route-origins-src',
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#fbbf24',
+          'circle-stroke-color': '#020617',
+          'circle-stroke-width': 2,
+        },
+      });
+
+      const { showRoutes: routesVisible } = useMapStore.getState();
+      ROUTE_LAYER_IDS.forEach((id) =>
+        map.setLayoutProperty(id, 'visibility', routesVisible ? 'visible' : 'none')
+      );
+
+      map.on('click', 'evac-routes-line', (e) => {
+        if (!e.features || !e.features[0]) return;
+        const props = e.features[0].properties;
+        const hazardLine = props?.traverses_hazard
+          ? '<div class="mt-1 text-red-700 font-bold">⚠️ Passes through a hazard zone (no safe alternative)</div>'
+          : props?.hazard_avoided
+            ? '<div class="mt-1 text-emerald-700 font-bold">✓ Hazard zones avoided</div>'
+            : '';
+        routePopupRef.current?.remove();
+        routePopupRef.current = new Popup({ closeButton: true, className: 'idra-map-popup' })
+          .setLngLat(e.lngLat)
+          .setHTML(
+            `<div class="p-2 text-xs font-sans max-w-xs">
+              <div class="font-bold text-sm text-slate-900">Route to ${escapeHtml(String(props?.destination_name ?? ''))}</div>
+              <div class="mt-1 text-slate-700">${props?.distance_km} km &bull; ~${props?.duration_min} min</div>
+              ${hazardLine}
+              <div class="mt-1 text-slate-600">${escapeHtml(String(props?.rationale ?? ''))}</div>
+            </div>`
+          )
+          .addTo(map);
+      });
+
+      map.on('mouseenter', 'evac-routes-line', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+      map.on('mouseleave', 'evac-routes-line', () => {
+        map.getCanvas().style.cursor = '';
+      });
+
       // Interactive popup on clicking hazard zones
       map.on('click', 'hazard-zones-fill', (e) => {
         if (!e.features || !e.features[0]) return;
@@ -238,6 +360,22 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     const source = map.getSource('hazard-zones-src') as maplibregl.GeoJSONSource | undefined;
     source?.setData(toHazardCollection(hazardZones));
   }, [hazardZones]);
+
+  // Update evacuation route lines (same load-race handling as hazard zones)
+  useEffect(() => {
+    routeDataRef.current = toRouteCollections(routes, facilities);
+    // A popup describing a route that is no longer drawn (new run or event) would be stale.
+    routePopupRef.current?.remove();
+    routePopupRef.current = null;
+    const map = mapRef.current;
+    if (!map) return;
+    (map.getSource('evac-routes-src') as maplibregl.GeoJSONSource | undefined)?.setData(
+      routeDataRef.current.lines
+    );
+    (map.getSource('evac-route-origins-src') as maplibregl.GeoJSONSource | undefined)?.setData(
+      routeDataRef.current.origins
+    );
+  }, [routes, facilities]);
 
   // Update Active Event Epicenter Marker with Pulsing Animation
   useEffect(() => {
@@ -365,7 +503,12 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       map.setLayoutProperty('hazard-zones-fill', 'visibility', visibility);
       map.setLayoutProperty('hazard-zones-line', 'visibility', visibility);
     }
-  }, [showBBox, showHazards]);
+
+    if (ROUTE_LAYER_IDS.every((id) => map.getLayer(id))) {
+      const visibility = showRoutes ? 'visible' : 'none';
+      ROUTE_LAYER_IDS.forEach((id) => map.setLayoutProperty(id, 'visibility', visibility));
+    }
+  }, [showBBox, showHazards, showRoutes]);
 
   // Focus on coordinates from briefing recommendation or search
   useEffect(() => {

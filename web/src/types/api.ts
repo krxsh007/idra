@@ -212,10 +212,27 @@ export interface AgentOutput {
   id: string;
   agent: string;
   status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  payload?: Record<string, unknown> | null;
   latency_ms?: number | null;
   error_code?: string | null;
   error_message?: string | null;
   created_at: string;
+}
+
+// Hazard-avoiding route computed by the Evacuation Routing agent (RoutingOutput.routes).
+export interface EvacuationRoute {
+  route_id: string;
+  origin: EpicenterPoint;
+  destination: EpicenterPoint;
+  destination_facility_id?: string | null;
+  destination_name: string;
+  geometry: { type: 'LineString'; coordinates: [number, number][] };
+  distance_m: number;
+  duration_s: number;
+  hazard_avoided: boolean;
+  traverses_hazard: boolean;
+  blocked_edges_avoided: number;
+  rationale: string;
 }
 
 export interface RunDetail {

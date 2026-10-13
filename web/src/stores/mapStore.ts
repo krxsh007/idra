@@ -7,9 +7,10 @@ interface MapState {
   showHazards: boolean;
   showReports: boolean;
   showFacilities: boolean;
+  showRoutes: boolean;
   selectedMarker: { type: 'event' | 'hazard' | 'report'; id: string; } | null;
   setViewport: (center: [number, number], zoom: number) => void;
-  toggleLayer: (layer: 'showBBox' | 'showHazards' | 'showReports' | 'showFacilities') => void;
+  toggleLayer: (layer: 'showBBox' | 'showHazards' | 'showReports' | 'showFacilities' | 'showRoutes') => void;
   setSelectedMarker: (marker: { type: 'event' | 'hazard' | 'report'; id: string; } | null) => void;
   resetView: () => void;
 }
@@ -24,13 +25,14 @@ export const useMapStore = create<MapState>((set) => ({
   showHazards: true,
   showReports: true,
   showFacilities: true,
+  showRoutes: true,
   selectedMarker: null,
 
   setViewport: (center: [number, number], zoom: number) => {
     set({ center, zoom });
   },
 
-  toggleLayer: (layer: 'showBBox' | 'showHazards' | 'showReports' | 'showFacilities') => {
+  toggleLayer: (layer: 'showBBox' | 'showHazards' | 'showReports' | 'showFacilities' | 'showRoutes') => {
     set((state) => ({ [layer]: !state[layer] }));
   },
 

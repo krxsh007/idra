@@ -7,6 +7,8 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    // File events don't cross Docker bind mounts on macOS; poll so edits hot-reload in the container.
+    watch: { usePolling: true, interval: 300 },
     proxy: {
       '/api': {
         target: process.env.VITE_API_TARGET || 'http://localhost:8000',

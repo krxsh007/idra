@@ -141,6 +141,12 @@ class RoutingAgent(BaseAgent[RoutingInput, RoutingOutput]):
             )
             if res:
                 p_type = "Medical rescue" if rep.casualties_reported else "Evacuation"
+                if rep.casualties_reported:
+                    incident_detail = "casualties reported"
+                elif rep.people_affected:
+                    incident_detail = f"{rep.people_affected} people affected"
+                else:
+                    incident_detail = "no casualties reported"
                 routes.append(
                     ComputedRouteItem(
                         route_id=uuid.uuid4(),
@@ -154,7 +160,10 @@ class RoutingAgent(BaseAgent[RoutingInput, RoutingOutput]):
                         hazard_avoided=res["hazard_avoided"],
                         traverses_hazard=res["traverses_hazard"],
                         blocked_edges_avoided=res["blocked_edges_avoided"],
-                        rationale=f"{p_type} route from incident {rep.id} to {dest_facility.name}.",
+                        rationale=(
+                            f"{p_type} route from a reported incident ({incident_detail}) "
+                            f"to {dest_facility.name}."
+                        ),
                     )
                 )
             else:

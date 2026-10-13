@@ -1,9 +1,10 @@
 import React from 'react';
-import { Layers, ShieldAlert, Eye, EyeOff, MapPin, Radio, Building2 } from 'lucide-react';
+import { Layers, ShieldAlert, Eye, EyeOff, MapPin, Radio, Building2, Route } from 'lucide-react';
 import { useMapStore } from '../../stores/mapStore';
 
 export const LayerControls: React.FC = () => {
-  const { showBBox, showHazards, showReports, showFacilities, toggleLayer } = useMapStore();
+  const { showBBox, showHazards, showReports, showFacilities, showRoutes, toggleLayer } =
+    useMapStore();
 
   return (
     <div className="bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl p-3 shadow-xl text-xs space-y-3 w-56">
@@ -72,6 +73,21 @@ export const LayerControls: React.FC = () => {
           </div>
           {showFacilities ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
         </button>
+
+        <button
+          onClick={() => toggleLayer('showRoutes')}
+          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg border transition-all ${
+            showRoutes
+              ? 'bg-sky-950/40 border-sky-800/60 text-sky-300'
+              : 'bg-slate-800/40 border-slate-800 text-slate-500 hover:text-slate-400'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Route className="w-3.5 h-3.5 text-sky-400" />
+            <span>Evacuation Routes</span>
+          </div>
+          {showRoutes ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+        </button>
       </div>
 
       <div className="border-t border-slate-800/80 pt-2 space-y-1 text-[11px] text-slate-400">
@@ -99,6 +115,18 @@ export const LayerControls: React.FC = () => {
             S
           </div>
           <span>Shelter (Green)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-0.5 rounded bg-blue-500" />
+          <span>Route to Hospital</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-0.5 rounded bg-green-500" />
+          <span>Route to Shelter</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-slate-950" />
+          <span>Rescue Zone (route start)</span>
         </div>
       </div>
     </div>
