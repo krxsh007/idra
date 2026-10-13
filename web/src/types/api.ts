@@ -231,6 +231,7 @@ export interface EvacuationRoute {
   duration_s: number;
   hazard_avoided: boolean;
   traverses_hazard: boolean;
+  starts_in_hazard?: boolean;
   blocked_edges_avoided: number;
   rationale: string;
 }

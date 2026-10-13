@@ -55,6 +55,13 @@ def generate_evaluation_markdown(results: dict[str, Any], out_path: str = DOCS_E
     r8_val = rag_m["retrieval_recall_at_8"]["value"]
     mrr8_val = rag_m["retrieval_mrr_at_8"]["value"]
 
+    from app.gis.graph import road_graph_manager
+
+    manifest = road_graph_manager.manifest
+    graph_size = (
+        f"`{manifest.get('node_count', 0):,}` nodes, `{manifest.get('edge_count', 0):,}` edges"
+    )
+
     lines = [
         "# IDRA Testing & Evaluation Report (Artifact 13)",
         "",
@@ -110,7 +117,7 @@ def generate_evaluation_markdown(results: dict[str, Any], out_path: str = DOCS_E
         "## 13.4 GIS & Hazard-Avoiding Routing Metrics (`gis_eval`)",
         "",
         "Measured over `routing_cases.json` (10 detour cases + 5 hazard-enclosure cases) on the "
-        "Chennai study-area road graph (`1,748` nodes, `6,820` edges):",
+        f"Chennai study-area OpenStreetMap road graph ({graph_size}):",
         "",
         "| Metric | Measured | Target | Status |",
         "|---|---|---|---|",
@@ -200,8 +207,8 @@ def generate_evaluation_markdown(results: dict[str, Any], out_path: str = DOCS_E
         "0.35` guarantees `100%` rejection of out-of-domain queries (`zero_llm_call_on_floor_"
         "miss_rate = 1.0`), prioritizing zero hallucination over permissive recall.",
         "2. **In-Memory NetworkX Road Graph Scope:**",
-        "   - Routing operates over a single-process in-memory NetworkX graph (`1,748` nodes, "
-        "`6,820` edges) bounded to `STUDY_AREA_BBOX` (`80.15, 12.95, 80.30, 13.15`). Scaling to "
+        f"   - Routing operates over a single-process in-memory NetworkX graph ({graph_size}) "
+        "bounded to `STUDY_AREA_BBOX` (`80.15, 12.95, 80.30, 13.15`). Scaling to "
         "state-wide multi-million-edge road networks requires migrating Stage-0/1 shortest-path "
         "queries to `pgRouting` (`ADR-005`).",
         "3. **Simulated Capacity Provenance:**",

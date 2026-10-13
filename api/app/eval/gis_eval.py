@@ -31,6 +31,16 @@ def run_gis_evaluation() -> dict[str, Any]:
     enclosure_passed = 0
     latencies_ms: list[float] = []
 
+    # Untimed warm-up so one-off index/cache initialisation isn't counted as route latency.
+    if detour_cases:
+        warm = detour_cases[0]
+        hazard_router.compute_route(
+            warm["origin"]["lon"],
+            warm["origin"]["lat"],
+            warm["destination"]["lon"],
+            warm["destination"]["lat"],
+        )
+
     # 1. Evaluate 10 detour cases
     for case in detour_cases:
         orig = case["origin"]

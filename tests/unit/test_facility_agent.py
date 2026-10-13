@@ -69,8 +69,7 @@ async def test_facility_agent_no_db_fallback():
     assert len(out.recommended_hospitals) == 0
 
 
-@pytest.mark.asyncio
-async def test_facility_agent_recommends_and_sorts_with_db():
+def _build_inputs():
     agent = FacilityRecommendationAgent()
     event = EventResponse(
         id=uuid.uuid4(),
@@ -92,7 +91,12 @@ async def test_facility_agent_recommends_and_sorts_with_db():
     hosp1 = make_sample_facility("Apollo Greams", FacilityType.HOSPITAL, 500, 300, has_gen=True)
     hosp2 = make_sample_facility("Govt General", FacilityType.HOSPITAL, 1000, 950, has_gen=False)
     sh1 = make_sample_facility("Velachery Relief Camp", FacilityType.SHELTER, 300, 50, has_gen=True)
+    return agent, event, input_data, hosp1, hosp2, sh1
 
+
+@pytest.mark.asyncio
+async def test_facility_agent_recommends_and_sorts_with_db():
+    agent, event, input_data, hosp1, hosp2, sh1 = _build_inputs()
     from sqlalchemy.ext.asyncio import AsyncSession
 
     mock_db = AsyncMock(spec=AsyncSession)
@@ -103,7 +107,14 @@ async def test_facility_agent_recommends_and_sorts_with_db():
         llm=FakeLLMClient(),
     )
 
-    with patch("app.agents.facilities.get_nearby_facilities", new_callable=AsyncMock) as mock_get:
+    with (
+        patch("app.agents.facilities.get_nearby_facilities", new_callable=AsyncMock) as mock_get,
+        patch(
+            "app.agents.facilities.get_facility_ids_in_hazard_zones",
+            new_callable=AsyncMock,
+            return_value=set(),
+        ),
+    ):
         # First call for hospitals, second call for shelters
         mock_get.side_effect = [
             [
@@ -129,3 +140,38 @@ async def test_facility_agent_recommends_and_sorts_with_db():
         assert out.recommended_shelters[0].available_capacity == 250
         assert out.total_hospital_capacity_available == 250
         assert out.total_shelter_capacity_available == 250
+
+
+@pytest.mark.asyncio
+async def test_facility_agent_excludes_facilities_inside_hazard_zones():
+    agent, event, input_data, hosp1, hosp2, sh1 = _build_inputs()
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    ctx = RunContext(
+        event_id=event.id,
+        agent_name=AgentName.HOSPITAL_RECOMMENDATION,
+        db=AsyncMock(spec=AsyncSession),
+        llm=FakeLLMClient(),
+    )
+
+    with (
+        patch("app.agents.facilities.get_nearby_facilities", new_callable=AsyncMock) as mock_get,
+        patch(
+            "app.agents.facilities.get_facility_ids_in_hazard_zones",
+            new_callable=AsyncMock,
+            return_value={hosp1.id, sh1.id},
+        ),
+    ):
+        mock_get.side_effect = [
+            [
+                FacilityDistanceResult(facility=hosp1, distance_m=1200.0),
+                FacilityDistanceResult(facility=hosp2, distance_m=800.0),
+            ],
+            [FacilityDistanceResult(facility=sh1, distance_m=500.0)],
+        ]
+
+        out = await agent.run(ctx, input_data)
+
+    assert [h.name for h in out.recommended_hospitals] == ["Govt General"]
+    assert out.recommended_shelters == []
+    assert "inside hazard zones" in out.rationale

@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 import structlog
 from geoalchemy2.shape import to_shape
+from shapely.geometry import Point, Polygon
 
 from app.agents.base import AgentFailure, BaseAgent, RunContext
 from app.db.models.enums import AgentName, AgentStatus
 from app.db.models.facilities import Facility
 from app.gis.graph import road_graph_manager
 from app.gis.routing import hazard_router
-from app.gis.spatial import get_blocked_edges
 from app.schemas.agents.routing import (
     ComputedRouteItem,
     RouteGeometry,
@@ -62,11 +63,56 @@ class RoutingAgent(BaseAgent[RoutingInput, RoutingOutput]):
                 status=AgentStatus.FAILED,
             )
 
-        # 1. Fetch blocked edges from DB if session exists
-        blocked_edges: set[tuple[int, int]] = set()
-        if ctx.db is not None:
-            db_blocked = await get_blocked_edges(ctx.db, input_data.event.id)
-            blocked_edges = set(db_blocked)
+        # 1. Classify road segments against this event's hazard polygons (in memory, using the
+        #    street geometry): impassable zones close roads, other zones are heavily penalised.
+        zones = []
+        for hz in input_data.hazard_zones:
+            rings = hz.geometry.coordinates
+            polygon = Polygon(rings[0], rings[1:])
+            zones.append((hz, polygon, road_graph_manager.edges_intersecting(polygon)))
+
+        def plan_route(origin: EpicenterPoint, dest: EpicenterPoint) -> dict[str, Any] | None:
+            o_pt, d_pt = Point(origin.lon, origin.lat), Point(dest.lon, dest.lat)
+            # A zone the route starts or ends in can't be avoided: leave it by the shortest way
+            # (penalised, not closed) and don't count it against "hazard avoided".
+            endpoint_zones = {
+                hz.id for hz, poly, _ in zones if poly.covers(o_pt) or poly.covers(d_pt)
+            }
+            blocked: set[tuple[int, int]] = set()
+            penalized: set[tuple[int, int]] = set()
+            avoidable: set[tuple[int, int]] = set()
+            for hz, _, edges in zones:
+                if hz.id in endpoint_zones:
+                    penalized |= edges
+                elif hz.is_impassable:
+                    blocked |= edges
+                else:
+                    penalized |= edges
+                    avoidable |= edges
+
+            res = hazard_router.compute_route(
+                origin_lon=origin.lon,
+                origin_lat=origin.lat,
+                dest_lon=dest.lon,
+                dest_lat=dest.lat,
+                blocked_edges=blocked,
+                penalized_edges=penalized,
+            )
+            if res is None:
+                return None
+            used = set(zip(res["path_nodes"], res["path_nodes"][1:], strict=False))
+            res["traverses_hazard"] = bool(used & avoidable)
+            res["hazard_avoided"] = not res["traverses_hazard"]
+            res["starts_in_hazard"] = any(poly.covers(o_pt) for _, poly, _ in zones)
+            res["blocked_edges_avoided"] = len(blocked) // 2  # two-way streets closed
+            return res
+
+        def describe(base: str, res: dict[str, Any]) -> str:
+            if res["starts_in_hazard"]:
+                base += " Starts inside a hazard zone and takes the shortest way out."
+            if res["traverses_hazard"]:
+                base += " No hazard-free alternative: passes through another hazard zone."
+            return base
 
         routes: list[ComputedRouteItem] = []
         unreachable: list[str] = []
@@ -90,13 +136,7 @@ class RoutingAgent(BaseAgent[RoutingInput, RoutingOutput]):
                     lat=input_data.event.epicenter.lat + 0.01,
                 ),
             )
-            route_res = hazard_router.compute_route(
-                origin_lon=input_data.event.epicenter.lon,
-                origin_lat=input_data.event.epicenter.lat,
-                dest_lon=dest_pt.lon,
-                dest_lat=dest_pt.lat,
-                blocked_edges=blocked_edges,
-            )
+            route_res = plan_route(input_data.event.epicenter, dest_pt)
             if route_res:
                 routes.append(
                     ComputedRouteItem(
@@ -112,8 +152,12 @@ class RoutingAgent(BaseAgent[RoutingInput, RoutingOutput]):
                         duration_s=route_res["duration_s"],
                         hazard_avoided=route_res["hazard_avoided"],
                         traverses_hazard=route_res["traverses_hazard"],
+                        starts_in_hazard=route_res["starts_in_hazard"],
                         blocked_edges_avoided=route_res["blocked_edges_avoided"],
-                        rationale=f"Primary civilian evacuation corridor to {target_shelter.name}.",
+                        rationale=describe(
+                            f"Primary civilian evacuation corridor to {target_shelter.name}.",
+                            route_res,
+                        ),
                     )
                 )
             else:
@@ -132,13 +176,7 @@ class RoutingAgent(BaseAgent[RoutingInput, RoutingOutput]):
                 dest_facility.facility_id,
                 EpicenterPoint(lon=rep.location.lon + 0.01, lat=rep.location.lat + 0.01),
             )
-            res = hazard_router.compute_route(
-                origin_lon=rep.location.lon,
-                origin_lat=rep.location.lat,
-                dest_lon=dest_pt.lon,
-                dest_lat=dest_pt.lat,
-                blocked_edges=blocked_edges,
-            )
+            res = plan_route(rep.location, dest_pt)
             if res:
                 p_type = "Medical rescue" if rep.casualties_reported else "Evacuation"
                 if rep.casualties_reported:
@@ -159,18 +197,22 @@ class RoutingAgent(BaseAgent[RoutingInput, RoutingOutput]):
                         duration_s=res["duration_s"],
                         hazard_avoided=res["hazard_avoided"],
                         traverses_hazard=res["traverses_hazard"],
+                        starts_in_hazard=res["starts_in_hazard"],
                         blocked_edges_avoided=res["blocked_edges_avoided"],
-                        rationale=(
+                        rationale=describe(
                             f"{p_type} route from a reported incident ({incident_detail}) "
-                            f"to {dest_facility.name}."
+                            f"to {dest_facility.name}.",
+                            res,
                         ),
                     )
                 )
             else:
                 unreachable.append(f"Incident {rep.id} to {dest_facility.name}")
 
+        avoided = sum(1 for r in routes if r.hazard_avoided)
         summary = (
-            f"Successfully computed {len(routes)} emergency corridors avoiding hazards. "
+            f"Computed {len(routes)} emergency corridors on the OpenStreetMap road network; "
+            f"{avoided} avoid all hazard zones they don't start in. "
             f"{len(unreachable)} destination pairs unreachable due to impassable roadways."
         )
 

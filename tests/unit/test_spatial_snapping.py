@@ -3,25 +3,32 @@ from app.core.errors import AppException, ErrorCode
 from app.gis.spatial import snap_point_to_graph_memory
 
 
-def test_hand_verified_snap_kathipara_junction() -> None:
-    """Hand-verified coordinate 1: Kathipara Junction arterial node."""
-    lon, lat = 80.1802, 12.9801  # Slightly offset from exact (80.180, 12.980)
-    node_id = snap_point_to_graph_memory(lon, lat, max_dist_m=500.0)
-    assert node_id == 1001
+def _snapped_distance_m(lon: float, lat: float) -> float:
+    from app.gis.graph import road_graph_manager
+    from app.gis.spatial import haversine_distance_m
+
+    node = road_graph_manager.get_graph().nodes[snap_point_to_graph_memory(lon, lat)]
+    return haversine_distance_m(lon, lat, node["lon"], node["lat"])
 
 
-def test_hand_verified_snap_koyambedu_cmbt() -> None:
-    """Hand-verified coordinate 2: Koyambedu CMBT bus terminus."""
-    lon, lat = 80.1904, 13.0722  # Slightly offset from exact (80.190, 13.072)
-    node_id = snap_point_to_graph_memory(lon, lat, max_dist_m=500.0)
-    assert node_id == 2002
+@pytest.mark.parametrize(
+    ("landmark", "lon", "lat"),
+    [
+        ("Kathipara Junction", 80.2010, 13.0067),
+        ("Koyambedu CMBT", 80.1948, 13.0694),
+        ("Besant Nagar", 80.2668, 12.9990),
+    ],
+)
+def test_landmarks_snap_to_a_nearby_road(landmark: str, lon: float, lat: float) -> None:
+    """Hand-picked public landmarks sit on (or beside) real roads in the OSM network."""
+    assert _snapped_distance_m(lon, lat) < 100.0, landmark
 
 
-def test_hand_verified_snap_besant_nagar() -> None:
-    """Hand-verified coordinate 3: Besant Nagar coastal arterial."""
-    lon, lat = 80.2698, 13.0102  # Slightly offset from exact (80.270, 13.010)
-    node_id = snap_point_to_graph_memory(lon, lat, max_dist_m=500.0)
-    assert node_id == 3002
+def test_snap_rejects_point_inside_guindy_national_park() -> None:
+    """No public road runs through the middle of Guindy National Park."""
+    with pytest.raises(AppException) as exc_info:
+        snap_point_to_graph_memory(80.232, 13.002, max_dist_m=500.0)
+    assert exc_info.value.status_code == 422
 
 
 def test_snap_rejection_far_from_network() -> None:

@@ -6,8 +6,8 @@ from app.gis.graph import road_graph_manager
 def test_road_graph_singleton_loaded() -> None:
     G = road_graph_manager.get_graph()
     assert isinstance(G, nx.DiGraph)
-    assert G.number_of_nodes() >= 1500
-    assert G.number_of_edges() >= 5000
+    assert G.number_of_nodes() >= 20000
+    assert G.number_of_edges() >= 50000
 
 
 def test_road_graph_manifest_bbox() -> None:
@@ -19,12 +19,24 @@ def test_road_graph_manifest_bbox() -> None:
 
 
 def test_road_graph_connectivity_shortest_path() -> None:
+    from app.gis.routing import hazard_router
+    from app.gis.spatial import haversine_distance_m
+
+    # Kathipara Junction to Chennai Central across the real OSM street network
+    origin, dest = (80.2010, 13.0067), (80.2750, 13.0827)
+    res = hazard_router.compute_route(*origin, *dest)
+    assert res is not None
+    straight_m = haversine_distance_m(*origin, *dest)
+    # Road distance exceeds the straight line but stays within a realistic detour factor
+    assert straight_m < res["distance_m"] < 1.6 * straight_m
+    # Route geometry follows street shapes, not just junction-to-junction lines
+    assert len(res["coordinates"]) > len(res["path_nodes"])
+
+
+def test_road_graph_is_osm_and_strongly_connected() -> None:
     G = road_graph_manager.get_graph()
-    # Kathipara Junction (1001) to Chennai Central (1007)
-    path = nx.shortest_path(G, source=1001, target=1007, weight="travel_s")
-    assert len(path) >= 5
-    assert path[0] == 1001
-    assert path[-1] == 1007
+    assert "OpenStreetMap" in road_graph_manager.manifest.get("source", "")
+    assert nx.is_strongly_connected(G)
 
 
 def test_road_graph_edge_attributes() -> None:

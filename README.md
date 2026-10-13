@@ -11,8 +11,8 @@
    - **Tier B (100% Deterministic — Zero LLM Dependency):** `FacilityRecommendationAgent`, `RoutingAgent`, and `ResourceAllocationAgent`, reconciled by a deterministic `ConflictResolver`.
 2. **Hybrid RAG over Official SOPs (`api/app/rag/`):**
    - Combines 384-dimensional dense vector similarity (`0.70`) and lexical BM25 overlap (`0.30`) over NDMA Urban Flood Guidelines, Sphere Handbook Minimum Standards, and TNSDMA Chennai Flood SOPs (`data/kb/raw/`), enforcing a strict `RAG_SCORE_FLOOR = 0.35`.
-3. **Hazard-Avoiding Dijkstra Router (`api/app/gis/`):**
-   - Operates over a pre-built Chennai OpenStreetMap road network (`1,748` nodes, `6,820` edges in `artifacts/road_graph.pkl`) with PostGIS polygon intersection (`ST_Intersects`) and explicit reporting of unreachable destinations when a location is fully enclosed.
+3. **Hazard-Avoiding Router (`api/app/gis/`):**
+   - Operates over Chennai's real OpenStreetMap drivable road network (`62,243` junctions, `164,910` directed edges, built from the committed extract in `data/osm/`), with in-memory hazard-polygon intersection (shapely `STRtree`): impassable zones close roads, other zones are penalised, and routes follow actual street geometry. Shelters and hospitals inside hazard zones are never recommended.
 4. **Human-in-the-Loop Verification Gate:**
    - Every AI-generated recommendation enters the database as `PENDING` with `is_committed = False`. Only an authenticated `ADMIN` can verify, override, or reject recommendations and commit resource allocations.
 5. **Tactical Command Center & Citizen Assistant (`web/`):**
