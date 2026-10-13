@@ -162,7 +162,7 @@ const Dashboard: React.FC = () => {
         </main>
 
         {/* Right Collapsible Operations & Detail Sidebar */}
-        <aside className="h-full z-10 shadow-2xl flex flex-col w-96 lg:w-[28rem] xl:w-[32rem] flex-shrink-0 bg-slate-950 border-l border-slate-800">
+        <aside className="h-full z-10 shadow-2xl flex flex-col w-80 lg:w-96 bg-slate-950 border-l border-slate-800">
           {/* Tab Switcher */}
           <div className="flex border-b border-slate-800 bg-slate-900/90 p-1.5 text-xs gap-1 flex-shrink-0">
             <button
