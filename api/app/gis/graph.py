@@ -1,14 +1,30 @@
 from __future__ import annotations
 
+import gc
 import json
+import math
 import os
 import pickle
 from typing import Any
 
 import networkx as nx
+import numpy as np
+from shapely import STRtree
+from shapely.geometry import LineString
+from shapely.geometry.base import BaseGeometry
 
 from app.core.config import settings
 from app.core.logging import logger
+
+
+def _exclude_from_gc() -> None:
+    """Move the (large, long-lived) graph out of the cyclic GC's working set.
+
+    The city graph is millions of objects; without this, every full collection walks all of
+    them and stalls whichever route computation triggered it for hundreds of milliseconds.
+    """
+    gc.collect()
+    gc.freeze()
 
 
 class RoadGraphManager:
@@ -16,6 +32,10 @@ class RoadGraphManager:
     _graph: nx.DiGraph | None = None
     _manifest: dict[str, Any] | None = None
     _unavailable: bool = False
+    _edge_tree: STRtree | None = None
+    _edge_pairs: list[tuple[int, int]] = []
+    _node_arrays: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
+    _node_xy: dict[int, tuple[float, float]] | None = None
 
     @classmethod
     def get_instance(cls) -> RoadGraphManager:
@@ -30,6 +50,9 @@ class RoadGraphManager:
         """Load the road network graph and validate its manifest bounding box."""
         if self._unavailable:
             raise RuntimeError("ROAD_GRAPH_UNAVAILABLE")
+        self._edge_tree = None
+        self._node_arrays = None
+        self._node_xy = None
         artifacts_dir = os.path.join(os.path.dirname(__file__), "../../../artifacts")
         pkl_path = os.path.join(artifacts_dir, "road_graph.pkl")
         manifest_path = os.path.join(artifacts_dir, "road_graph_manifest.json")
@@ -70,20 +93,20 @@ class RoadGraphManager:
                     nodes=self._graph.number_of_nodes(),
                     edges=self._graph.number_of_edges(),
                 )
+                _exclude_from_gc()
                 return
             except Exception as e:
                 logger.error("road_graph_pickle_load_failed", error=str(e))
 
-        # Fallback: Construct minimal connected graph in-memory if artifact is missing
-        logger.info("building_fallback_in_memory_road_graph")
-        from scripts.load_road_network import build_chennai_road_graph
+        # No pickle (fresh clone): build from the committed OSM extract and cache it.
+        logger.info("building_road_graph_from_osm_extract")
+        from scripts.load_road_network import build_road_graph, save_artifacts
 
-        self._graph = build_chennai_road_graph()
-        self._manifest = {
-            "node_count": self._graph.number_of_nodes(),
-            "edge_count": self._graph.number_of_edges(),
-            "bbox": [float(x.strip()) for x in settings.STUDY_AREA_BBOX.split(",")],
-        }
+        self._graph = build_road_graph()
+        save_artifacts(self._graph)
+        _exclude_from_gc()
+        with open(manifest_path, encoding="utf-8") as f:
+            self._manifest = json.load(f)
 
     def get_graph(self) -> nx.DiGraph:
         if self._unavailable:
@@ -92,6 +115,53 @@ class RoadGraphManager:
             self.load_graph()
         assert self._graph is not None
         return self._graph
+
+    def node_arrays(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Node ids, longitudes and latitudes as arrays for vectorised nearest-node lookup."""
+        if self._node_arrays is None:
+            G = self.get_graph()
+            ids = np.fromiter(G.nodes, dtype=np.int64, count=G.number_of_nodes())
+            lons = np.array([G.nodes[n].get("lon", G.nodes[n].get("x")) for n in ids], float)
+            lats = np.array([G.nodes[n].get("lat", G.nodes[n].get("y")) for n in ids], float)
+            self._node_arrays = (ids, lons, lats)
+        return self._node_arrays
+
+    def node_xy(self) -> dict[int, tuple[float, float]]:
+        """Node positions in metres on a local equirectangular plane (for A* distance bounds)."""
+        if self._node_xy is None:
+            ids, lons, lats = self.node_arrays()
+            r = 6371000.0
+            lat0 = math.radians(float(lats.mean())) if len(lats) else 0.0
+            xs = np.radians(lons) * math.cos(lat0) * r
+            ys = np.radians(lats) * r
+            self._node_xy = {
+                int(n): (float(x), float(y)) for n, x, y in zip(ids, xs, ys, strict=True)
+            }
+        return self._node_xy
+
+    def edges_intersecting(self, geom: BaseGeometry) -> set[tuple[int, int]]:
+        """Directed (u, v) pairs whose street geometry intersects `geom` (e.g. a hazard polygon)."""
+        G = self.get_graph()
+        if self._edge_tree is None:
+            pairs: list[tuple[int, int]] = []
+            lines: list[LineString] = []
+            for u, v, data in G.edges(data=True):
+                if u > v and G.has_edge(v, u):
+                    continue  # index each two-way street once
+                geometry = data.get("geometry") or [
+                    [G.nodes[n]["lon"], G.nodes[n]["lat"]] for n in (u, v)
+                ]
+                pairs.append((u, v))
+                lines.append(LineString(geometry))
+            self._edge_pairs = pairs
+            self._edge_tree = STRtree(lines)
+
+        hits: set[tuple[int, int]] = set()
+        for idx in self._edge_tree.query(geom, predicate="intersects"):
+            u, v = self._edge_pairs[int(idx)]
+            hits.add((u, v))
+            hits.add((v, u))
+        return hits
 
     @property
     def is_loaded(self) -> bool:

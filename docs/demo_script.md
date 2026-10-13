@@ -40,8 +40,10 @@ not a failure. For a fully offline demo, set `LLM_BACKEND=fake`, run `make seed`
    origin badge (AI-generated vs deterministic) and provenance tag (REAL vs SIMULATED data).
 2. Click the locate action on a recommendation card: the map flies to the target zone or facility.
 3. Point at the **Evacuation Routes** on the map: lines from each rescue zone (amber dot) to its hospital (blue)
-   or shelter (green), computed by hazard-avoiding Dijkstra. In Scenario 1 the shelter route visibly detours
-   around the severe flood polygon. Click a route for distance, travel time, and whether hazards were avoided.
+   or shelter (green), routed along Chennai's real OpenStreetMap streets. In Scenario 1, the shelter inside the
+   Saidapet flood zone is never chosen, and the hospital route goes around the amber zone instead of through it.
+   Click a route for distance, travel time, and whether it starts inside a hazard zone (rescues from inside the
+   flood take the shortest way out) or avoids all other hazard zones.
 
 ## Step 4 — Human-in-the-loop verification (2 min)
 1. Every recommendation starts as **PENDING**; nothing is committed automatically.

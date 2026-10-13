@@ -1,7 +1,7 @@
 # IDRA Testing & Evaluation Report (Artifact 13)
 
 > **Generated automatically by `scripts/run_eval.py` from measured harness output (`artifacts/eval_results.json`).**
-> - **Timestamp (UTC):** `2026-10-13T13:08:40.773052+00:00`
+> - **Timestamp (UTC):** `2026-10-13T13:51:09.495939+00:00`
 > - **LLM Backend:** `gemini`
 > - **Automated Metrics Passed:** `34 / 34` (`100.0%`)
 > - **UI Human Cohort Status:** `AWAITING_HUMAN_PARTICIPANTS`
@@ -30,8 +30,8 @@ Measured over `retrieval_queries.json` (40 in-domain queries + 5 out-of-domain f
 | `retrieval_mrr_at_8` | `0.9875` | `>= 0.8` | **PASS** |
 | `citation_resolution_rate` | `1.0` | `>= 0.95` | **PASS** |
 | `zero_llm_call_on_floor_miss_rate` | `1.0` | `== 1.0` | **PASS** |
-| `retrieval_latency_p50_ms` | `14.09` | `<= 150.0` | **PASS** |
-| `retrieval_latency_p95_ms` | `19.04` | `<= 250.0` | **PASS** |
+| `retrieval_latency_p50_ms` | `9.11` | `<= 150.0` | **PASS** |
+| `retrieval_latency_p95_ms` | `13.27` | `<= 250.0` | **PASS** |
 | `inter_annotator_cohens_kappa` | `0.89` | `>= 0.8` | **PASS** |
 
 ---
@@ -60,7 +60,7 @@ Measured over `assessment_cases.json` (20 cases), `facility_cases.json` (10 case
 
 ## 13.4 GIS & Hazard-Avoiding Routing Metrics (`gis_eval`)
 
-Measured over `routing_cases.json` (10 detour cases + 5 hazard-enclosure cases) on the Chennai study-area road graph (`1,748` nodes, `6,820` edges):
+Measured over `routing_cases.json` (10 detour cases + 5 hazard-enclosure cases) on the Chennai study-area OpenStreetMap road graph (`62,243` nodes, `164,910` edges):
 
 | Metric | Measured | Target | Status |
 |---|---|---|---|
@@ -69,8 +69,8 @@ Measured over `routing_cases.json` (10 detour cases + 5 hazard-enclosure cases) 
 | `distance_sum_accuracy_within_1m_rate` | `1.0` | `== 1.0` | **PASS** |
 | `hazard_avoidance_rate_detour_cases` | `1.0` | `>= 0.9` | **PASS** |
 | `enclosure_degradation_accuracy` | `1.0` | `== 1.0` | **PASS** |
-| `route_computation_latency_p50_ms` | `3.75` | `<= 100.0` | **PASS** |
-| `route_computation_latency_p95_ms` | `5.92` | `<= 250.0` | **PASS** |
+| `route_computation_latency_p50_ms` | `39.39` | `<= 100.0` | **PASS** |
+| `route_computation_latency_p95_ms` | `170.85` | `<= 250.0` | **PASS** |
 
 ---
 
@@ -84,8 +84,8 @@ Measured over full orchestration runs on the 3 canonical scenarios (`chennai_flo
 | `tier_b_llm_disabled_survival_rate` | `1.0` | `== 1.0` | **PASS** |
 | `verification_gate_enforcement_rate` | `1.0` | `== 1.0` | **PASS** |
 | `concurrent_graph_immutability_rate` | `1.0` | `== 1.0` | **PASS** |
-| `orchestration_run_latency_p50_ms` | `29.79` | `<= 5000.0` | **PASS** |
-| `orchestration_run_latency_p95_ms` | `39.06` | `<= 15000.0` | **PASS** |
+| `orchestration_run_latency_p50_ms` | `344.25` | `<= 5000.0` | **PASS** |
+| `orchestration_run_latency_p95_ms` | `675.97` | `<= 15000.0` | **PASS** |
 
 ---
 
@@ -132,7 +132,7 @@ Per Artifact 15 Rule 5 (*"Never write a metric value you did not measure, and ne
    - Under the deterministic feature-hashed vector fallback (`LLM_BACKEND=fake`), `retrieval_precision_at_5` reaches `0.7654`, `retrieval_recall_at_8` reaches `0.9917`, `retrieval_mrr_at_8` reaches `0.9875`, and `zero_llm_call_on_floor_miss_rate` achieves `1.00`.
    - **Trade-off:** Feature hashing projects tokens and 4-5 character prefixes into 384 signed buckets without neural synonym expansion. Preserving a strict `RAG_SCORE_FLOOR = 0.35` guarantees `100%` rejection of out-of-domain queries (`zero_llm_call_on_floor_miss_rate = 1.0`), prioritizing zero hallucination over permissive recall.
 2. **In-Memory NetworkX Road Graph Scope:**
-   - Routing operates over a single-process in-memory NetworkX graph (`1,748` nodes, `6,820` edges) bounded to `STUDY_AREA_BBOX` (`80.15, 12.95, 80.30, 13.15`). Scaling to state-wide multi-million-edge road networks requires migrating Stage-0/1 shortest-path queries to `pgRouting` (`ADR-005`).
+   - Routing operates over a single-process in-memory NetworkX graph (`62,243` nodes, `164,910` edges) bounded to `STUDY_AREA_BBOX` (`80.15, 12.95, 80.30, 13.15`). Scaling to state-wide multi-million-edge road networks requires migrating Stage-0/1 shortest-path queries to `pgRouting` (`ADR-005`).
 3. **Simulated Capacity Provenance:**
    - Hospital bed occupancies and shelter capacities are seeded and not connected to live health-department telemetry. Every synthetic figure is explicitly tagged with `capacity_provenance = SIMULATED` in PostgreSQL, the JSON API, and the `ProvenanceTag` UI badge.
 4. **Annotator Bias Acknowledgement:**

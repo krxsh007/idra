@@ -29,10 +29,10 @@ The **Intelligent Disaster Response Assistant (IDRA)** is a multi-agent decision
 ├────────────────────────┬───────────────────────────┬─────────────────────────┤
 │   Hybrid RAG Engine    │   GIS & Routing Engine    │   Persistence Layer     │
 │  • Markdown Parser     │  • NetworkX Road Graph    │  • PostgreSQL 16        │
-│  • Token Chunker       │    (1,748 nodes, 6,820 e) │  • PostGIS 3.4          │
+│  • Token Chunker       │    (OSM, 62k junctions)   │  • PostGIS 3.4          │
 │  • 384-d Embeddings    │  • PostGIS ST_Intersects  │  • pgvector 0.8         │
-│  • Cosine + BM25       │  • Hazard-Aware Dijkstra   │  • (no external cache)  │
-│    (0.70 / 0.30)       │    Dijkstra               │                         │
+│  • Cosine + BM25       │  • Hazard-Aware A*        │  • (no external cache)  │
+│    (0.70 / 0.30)       │    (= Dijkstra-optimal)   │                         │
 └────────────────────────┴───────────────────────────┴─────────────────────────┘
 ```
 

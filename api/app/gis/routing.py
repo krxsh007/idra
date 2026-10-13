@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import networkx as nx
@@ -44,57 +45,76 @@ class HazardAwareRouter:
 
         G = road_graph_manager.get_graph()
 
-        # Weight function for Dijkstra / A*
-        def weight_fn(u: int, v: int, d: dict[str, Any]) -> float:
-            if (u, v) in blocked or (v, u) in blocked:
-                return float("inf")
+        # Weight function for A*: one set lookup per edge (both directions precomputed)
+        blocked_dir = blocked | {(v, u) for u, v in blocked}
+        penalized_dir = penalized | {(v, u) for u, v in penalized}
 
-            base_length = float(d.get("length", 100.0))
-            if (u, v) in penalized or (v, u) in penalized:
-                return base_length * penalty
-            return base_length
+        def weight_fn(u: int, v: int, d: dict[str, Any]) -> float | None:
+            edge = (u, v)
+            if edge in blocked_dir:
+                return None  # networkx treats None as an impassable edge
+            if edge in penalized_dir:
+                return float(d.get("length", 100.0)) * penalty
+            return float(d.get("length", 100.0))
+
+        # A* with a straight-line lower bound returns the same path as Dijkstra (road length is
+        # never shorter than the straight line, and penalties only add cost) but explores far
+        # fewer nodes on a city-scale graph. The 0.5% margin keeps the planar distance a strict
+        # lower bound of the true (haversine) distance across the study area.
+        node_xy = road_graph_manager.node_xy()
+
+        def straight_line_m(a: int, b: int) -> float:
+            ax, ay = node_xy[a]
+            bx, by = node_xy[b]
+            return math.hypot(ax - bx, ay - by) * 0.995
 
         try:
-            path_nodes = nx.shortest_path(
+            path_nodes = nx.astar_path(
                 G,
                 source=start_node,
                 target=end_node,
+                heuristic=straight_line_m,
                 weight=weight_fn,
-                method="dijkstra",
             )
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             return None
 
-        # Reconstruct path geometry and aggregate statistics
+        # Reconstruct path geometry (full street shape per edge) and aggregate statistics
         coords: list[list[float]] = []
         total_dist_m = 0.0
+        duration_s = 0.0
         traverses_hazard = False
         blocked_edges_avoided = 0
 
-        for i, node_id in enumerate(path_nodes):
+        def node_coord(node_id: int) -> list[float]:
             ndata = G.nodes[node_id]
-            n_lon = float(ndata.get("lon", ndata.get("x", 0.0)))
-            n_lat = float(ndata.get("lat", ndata.get("y", 0.0)))
-            coords.append([n_lon, n_lat])
+            return [
+                float(ndata.get("lon", ndata.get("x", 0.0))),
+                float(ndata.get("lat", ndata.get("y", 0.0))),
+            ]
 
-            if i > 0:
-                prev_node = path_nodes[i - 1]
-                edge_data = G.get_edge_data(prev_node, node_id, default={})
-                edge_len = float(edge_data.get("length", 0.0))
-                if edge_len <= 0.0:
-                    prev_lon, prev_lat = coords[-2]
-                    edge_len = haversine_distance_m(prev_lon, prev_lat, n_lon, n_lat)
-                total_dist_m += edge_len
+        coords.append(node_coord(path_nodes[0]))
+        for prev_node, node_id in zip(path_nodes, path_nodes[1:], strict=False):
+            edge_data = G.get_edge_data(prev_node, node_id, default={})
+            geometry = edge_data.get("geometry")
+            if geometry and len(geometry) >= 2:
+                coords.extend([list(pt) for pt in geometry[1:]])
+            else:
+                coords.append(node_coord(node_id))
 
-                if (prev_node, node_id) in penalized or (node_id, prev_node) in penalized:
-                    traverses_hazard = True
+            edge_len = float(edge_data.get("length", 0.0))
+            if edge_len <= 0.0:
+                edge_len = haversine_distance_m(*node_coord(prev_node), *node_coord(node_id))
+            total_dist_m += edge_len
+            # Emergency transit at the road's speed (falls back to ~30 km/h)
+            duration_s += float(edge_data.get("travel_s", edge_len / 8.33))
+
+            if (prev_node, node_id) in penalized or (node_id, prev_node) in penalized:
+                traverses_hazard = True
 
         # Check if any incident blocked edges were nearby / avoided
         if blocked:
             blocked_edges_avoided = len(blocked)
-
-        # Estimate travel duration assuming emergency transit speed of ~30 km/h (8.33 m/s)
-        duration_s = total_dist_m / 8.33
 
         return {
             "path_nodes": path_nodes,

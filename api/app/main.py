@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from shapely.geometry import Point
 
 from app.core.config import settings
 from app.core.errors import (
@@ -42,6 +43,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from app.gis.graph import road_graph_manager
 
     road_graph_manager.load_graph()
+    # Build the street-geometry index used to match roads against hazard polygons.
+    await asyncio.to_thread(road_graph_manager.edges_intersecting, Point(80.2, 13.0))
+    await asyncio.to_thread(road_graph_manager.node_arrays)
 
     # Load the embedding model up front: a cold load can exceed the citizen agent's timeout.
     from app.rag.embeddings import EmbeddingService

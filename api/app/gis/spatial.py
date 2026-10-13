@@ -4,6 +4,7 @@ import math
 import uuid
 from dataclasses import dataclass
 
+import numpy as np
 from geoalchemy2 import Geography
 from geoalchemy2.functions import (
     ST_Area,
@@ -55,18 +56,17 @@ def snap_point_to_graph_memory(
 ) -> int:
     """Snap coordinate to nearest road node in loaded in-memory NetworkX graph."""
     validate_point_in_study_area(lon, lat)
-    G = road_graph_manager.get_graph()
+    ids, lons, lats = road_graph_manager.node_arrays()
 
     closest_node = None
     min_dist = float("inf")
-
-    for node_id, data in G.nodes(data=True):
-        n_lon = data.get("lon", data.get("x", 0.0))
-        n_lat = data.get("lat", data.get("y", 0.0))
-        dist = haversine_distance_m(lon, lat, n_lon, n_lat)
-        if dist < min_dist:
-            min_dist = dist
-            closest_node = node_id
+    if len(ids):
+        # Equirectangular distance picks the nearest node; haversine reports its exact distance.
+        dx = (lons - lon) * math.cos(math.radians(lat))
+        dy = lats - lat
+        idx = int(np.argmin(dx * dx + dy * dy))
+        closest_node = int(ids[idx])
+        min_dist = haversine_distance_m(lon, lat, float(lons[idx]), float(lats[idx]))
 
     if closest_node is None or min_dist > max_dist_m:
         raise AppException(
@@ -255,3 +255,18 @@ async def check_facility_hazard_intersection(
     )
     res = await db.execute(stmt)
     return bool(res.scalar_one() > 0)
+
+
+async def get_facility_ids_in_hazard_zones(
+    db: AsyncSession,
+    event_id: uuid.UUID,
+) -> set[uuid.UUID]:
+    """Return IDs of facilities located inside any of the event's hazard zones."""
+    stmt = (
+        select(Facility.id)
+        .join(HazardZone, ST_Intersects(Facility.location, HazardZone.geom))
+        .where(HazardZone.event_id == event_id)
+        .distinct()
+    )
+    res = await db.execute(stmt)
+    return set(res.scalars().all())

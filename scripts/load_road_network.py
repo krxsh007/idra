@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 import asyncio
+import gzip
 import json
 import math
 import os
 import pickle
 from datetime import UTC, datetime
+from typing import Any
 
+import httpx
 import networkx as nx
 from app.core.config import settings
 from app.core.logging import logger, setup_logging
 from app.db.models.roads import RoadEdge, RoadNode
 from geoalchemy2.shape import from_shape
 from shapely.geometry import LineString, Point
-from sqlalchemy import func, select
+from sqlalchemy import delete, insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 BBOX = [80.15, 12.95, 80.30, 13.15]  # min_lon, min_lat, max_lon, max_lat
@@ -35,257 +38,195 @@ def haversine_m(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
     return r * c
 
 
-def build_chennai_road_graph() -> nx.DiGraph:
-    """Construct a high-fidelity connected directed road graph for Chennai core bbox."""
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+# Committed, gzipped Overpass extract (© OpenStreetMap contributors, ODbL) so builds work offline.
+OSM_CACHE_PATH = os.path.join(
+    os.path.dirname(__file__), "../data/osm/chennai_roads_overpass.json.gz"
+)
+
+# Drivable OSM road classes; footpaths, service roads and tracks are excluded.
+HIGHWAY_SPEED_KPH = {
+    "motorway": 60.0,
+    "trunk": 50.0,
+    "primary": 40.0,
+    "secondary": 35.0,
+    "tertiary": 30.0,
+    "unclassified": 25.0,
+    "residential": 20.0,
+    "living_street": 15.0,
+}
+HIGHWAY_RANK = {name: rank for rank, name in enumerate(HIGHWAY_SPEED_KPH)}
+
+
+def _base_class(highway: str) -> str:
+    return highway.removesuffix("_link")
+
+
+def fetch_overpass_roads(cache_path: str = OSM_CACHE_PATH) -> dict[str, Any]:
+    """Download drivable OSM ways inside BBOX (cached on disk after the first download)."""
+    if os.path.exists(cache_path):
+        with gzip.open(cache_path, "rt", encoding="utf-8") as f:
+            return json.load(f)
+
+    classes = "|".join(f"{c}|{c}_link" for c in HIGHWAY_SPEED_KPH)
+    min_lon, min_lat, max_lon, max_lat = BBOX
+    query = (
+        f'[out:json][timeout:180];way["highway"~"^({classes})$"]'
+        f"({min_lat},{min_lon},{max_lat},{max_lon});out geom;"
+    )
+    logger.info("downloading_osm_roads", url=OVERPASS_URL, bbox=BBOX)
+    resp = httpx.post(
+        OVERPASS_URL,
+        data={"data": query},
+        timeout=240,
+        headers={"User-Agent": "IDRA-research-prototype/1.0"},
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+    with gzip.open(cache_path, "wt", encoding="utf-8") as f:
+        json.dump(data, f)
+    return data
+
+
+def build_graph_from_osm(osm: dict[str, Any]) -> nx.DiGraph:
+    """Build a simplified, connected road graph from Overpass `out geom` ways.
+
+    Raw OSM nodes are collapsed so graph nodes are only junctions and dead ends; each edge
+    keeps the full street geometry so routes follow the real road shape. Only the largest
+    connected component is kept, so every snapped point can reach every other.
+    """
+    min_lon, min_lat, max_lon, max_lat = BBOX
+
+    def in_bbox(lon: float, lat: float) -> bool:
+        return min_lon <= lon <= max_lon and min_lat <= lat <= max_lat
+
+    coords: dict[int, tuple[float, float]] = {}
+    adjacency: dict[int, set[int]] = {}
+    segments: dict[tuple[int, int], dict[str, Any]] = {}
+
+    for way in osm.get("elements", []):
+        if way.get("type") != "way" or "geometry" not in way:
+            continue
+        highway = _base_class(way.get("tags", {}).get("highway", ""))
+        if highway not in HIGHWAY_SPEED_KPH:
+            continue
+        name = way.get("tags", {}).get("name")
+        for (a, pa), (b, pb) in zip(
+            zip(way["nodes"], way["geometry"], strict=False),
+            zip(way["nodes"][1:], way["geometry"][1:], strict=False),
+            strict=False,
+        ):
+            if a == b or not (in_bbox(pa["lon"], pa["lat"]) and in_bbox(pb["lon"], pb["lat"])):
+                continue
+            coords[a] = (pa["lon"], pa["lat"])
+            coords[b] = (pb["lon"], pb["lat"])
+            adjacency.setdefault(a, set()).add(b)
+            adjacency.setdefault(b, set()).add(a)
+            key = (min(a, b), max(a, b))
+            prev = segments.get(key)
+            if prev is None or HIGHWAY_RANK[highway] < HIGHWAY_RANK[prev["highway"]]:
+                segments[key] = {"highway": highway, "name": name, "way_id": way["id"]}
+
+    # Largest connected component (undirected) so routing never strands on an island
+    seen: set[int] = set()
+    largest: set[int] = set()
+    for start in adjacency:
+        if start in seen:
+            continue
+        component = {start}
+        stack = [start]
+        while stack:
+            for nbr in adjacency[stack.pop()]:
+                if nbr not in component:
+                    component.add(nbr)
+                    stack.append(nbr)
+        seen |= component
+        if len(component) > len(largest):
+            largest = component
+
+    keep = {n for n in largest if len(adjacency[n]) != 2}
     G = nx.DiGraph()
+    for n in keep:
+        lon, lat = coords[n]
+        G.add_node(n, x=lon, y=lat, lon=lon, lat=lat)
 
-    # Define key Chennai arterial corridors (nodes and sequence)
-    # 1. Anna Salai / Mount Road (SW to NE)
-    anna_salai = [
-        (1001, 80.180, 12.980, "Kathipara Junction"),
-        (1002, 80.205, 13.010, "Guindy"),
-        (1003, 80.220, 13.025, "Saidapet"),
-        (1004, 80.235, 13.040, "Nandanam"),
-        (1005, 80.245, 13.055, "Teynampet"),
-        (1006, 80.255, 13.068, "Thousand Lights"),
-        (1007, 80.270, 13.080, "Chennai Central / Park"),
-    ]
+    visited: set[tuple[int, int]] = set()
+    for u in keep:
+        for first in adjacency[u]:
+            if (min(u, first), max(u, first)) in visited:
+                continue
+            chain = [u, first]
+            while chain[-1] not in keep:
+                prev, cur = chain[-2], chain[-1]
+                chain.append(next(n for n in adjacency[cur] if n != prev))
+            v = chain[-1]
+            keys = [(min(x, y), max(x, y)) for x, y in zip(chain, chain[1:], strict=False)]
+            visited.update(keys)
+            if u == v:
+                continue  # closed loop back to the same junction adds no connectivity
 
-    # 2. Poonamallee High Road (W to E)
-    ph_road = [
-        (2001, 80.160, 13.070, "Maduravoyal"),
-        (2002, 80.190, 13.072, "Koyambedu CMBT"),
-        (2003, 80.215, 13.075, "Aminjikarai"),
-        (2004, 80.240, 13.078, "Kilpauk"),
-        (1007, 80.270, 13.080, "Chennai Central / Park"),  # Junction
-    ]
-
-    # 3. Kamarajar Salai / Marina Beach Road (S to N)
-    marina_road = [
-        (3001, 80.265, 12.990, "Thiruvanmiyur"),
-        (3002, 80.270, 13.010, "Besant Nagar / Adyar"),
-        (3003, 80.275, 13.035, "Santhome"),
-        (3004, 80.280, 13.060, "Marina Beach / Ice House"),
-        (3005, 80.285, 13.085, "Fort St. George / Port"),
-    ]
-
-    # 4. GST Road (South to Kathipara)
-    gst_road = [
-        (4001, 80.160, 12.960, "Airport Subway"),
-        (4002, 80.170, 12.970, "Meenambakkam"),
-        (1001, 80.180, 12.980, "Kathipara Junction"),  # Junction
-    ]
-
-    # 5. Velachery Main Road & OMR (South to Central)
-    velachery_omr = [
-        (5001, 80.215, 12.965, "Velachery Vijayanagar"),
-        (5002, 80.230, 12.985, "Taramani / SRP Tools"),
-        (3002, 80.270, 13.010, "Besant Nagar / Adyar"),  # Junction
-    ]
-
-    # Add corridors to graph
-    corridors = [
-        (anna_salai, "primary", 50.0),
-        (ph_road, "primary", 50.0),
-        (marina_road, "primary", 50.0),
-        (gst_road, "primary", 50.0),
-        (velachery_omr, "primary", 45.0),
-    ]
-
-    for corridor_nodes, hw_class, speed in corridors:
-        for i in range(len(corridor_nodes) - 1):
-            u_id, u_lon, u_lat, _ = corridor_nodes[i]
-            v_id, v_lon, v_lat, _ = corridor_nodes[i + 1]
-
-            if not G.has_node(u_id):
-                G.add_node(u_id, x=u_lon, y=u_lat, lon=u_lon, lat=u_lat)
-            if not G.has_node(v_id):
-                G.add_node(v_id, x=v_lon, y=v_lat, lon=v_lon, lat=v_lat)
-
-            dist_m = max(10.0, haversine_m(u_lon, u_lat, v_lon, v_lat))
-            travel_s = dist_m / (speed * 1000.0 / 3600.0)
-
-            # Bidirectional arterial
-            G.add_edge(
-                u_id,
-                v_id,
-                length_m=dist_m,
-                speed_kph=speed,
-                travel_s=travel_s,
-                highway_class=hw_class,
-                oneway=False,
+            geometry = [list(coords[n]) for n in chain]
+            length_m = sum(
+                haversine_m(*coords[x], *coords[y]) for x, y in zip(chain, chain[1:], strict=False)
             )
-            G.add_edge(
-                v_id,
-                u_id,
-                length_m=dist_m,
-                speed_kph=speed,
-                travel_s=travel_s,
-                highway_class=hw_class,
-                oneway=False,
-            )
-
-    # 6. Grid Densification across Chennai Core BBox so distance to nearest node is <= 400m
-    # 80.15 to 80.30 (approx 16km, step ~0.0035 deg ≈ 380m)
-    # 12.95 to 13.15 (approx 22km, step ~0.0035 deg ≈ 380m)
-    lons = [round(80.155 + i * 0.004, 5) for i in range(36)]
-    lats = [round(12.955 + j * 0.004, 5) for j in range(48)]
-
-    grid_node_ids: dict[tuple[int, int], int] = {}
-    node_id_counter = 10000
-
-    for i, lon in enumerate(lons):
-        for j, lat in enumerate(lats):
-            n_id = node_id_counter
-            node_id_counter += 1
-            grid_node_ids[(i, j)] = n_id
-            G.add_node(n_id, x=lon, y=lat, lon=lon, lat=lat)
-
-    # Connect grid nodes to adjacent neighbors (horizontal and vertical local streets)
-    for i in range(len(lons)):
-        for j in range(len(lats)):
-            curr_id = grid_node_ids[(i, j)]
-            curr_lon, curr_lat = lons[i], lats[j]
-
-            # Horizontal edge
-            if i + 1 < len(lons):
-                next_id = grid_node_ids[(i + 1, j)]
-                next_lon, next_lat = lons[i + 1], lats[j]
-                dist_m = max(5.0, haversine_m(curr_lon, curr_lat, next_lon, next_lat))
-                travel_s = dist_m / (30.0 * 1000.0 / 3600.0)
-                G.add_edge(
-                    curr_id,
-                    next_id,
-                    length_m=dist_m,
-                    speed_kph=30.0,
-                    travel_s=travel_s,
-                    highway_class="residential",
-                    oneway=False,
-                )
-                G.add_edge(
-                    next_id,
-                    curr_id,
-                    length_m=dist_m,
-                    speed_kph=30.0,
-                    travel_s=travel_s,
-                    highway_class="residential",
-                    oneway=False,
-                )
-
-            # Vertical edge
-            if j + 1 < len(lats):
-                next_id = grid_node_ids[(i, j + 1)]
-                next_lon, next_lat = lons[i], lats[j + 1]
-                dist_m = max(5.0, haversine_m(curr_lon, curr_lat, next_lon, next_lat))
-                travel_s = dist_m / (30.0 * 1000.0 / 3600.0)
-                G.add_edge(
-                    curr_id,
-                    next_id,
-                    length_m=dist_m,
-                    speed_kph=30.0,
-                    travel_s=travel_s,
-                    highway_class="residential",
-                    oneway=False,
-                )
-                G.add_edge(
-                    next_id,
-                    curr_id,
-                    length_m=dist_m,
-                    speed_kph=30.0,
-                    travel_s=travel_s,
-                    highway_class="residential",
-                    oneway=False,
-                )
-
-    # Connect arterial nodes to closest grid nodes
-    for corridor_nodes, _, _ in corridors:
-        for u_id, u_lon, u_lat, _ in corridor_nodes:
-            # Find closest grid node
-            closest_grid = min(
-                grid_node_ids.values(),
-                key=lambda gid: haversine_m(u_lon, u_lat, G.nodes[gid]["lon"], G.nodes[gid]["lat"]),
-            )
-            g_lon, g_lat = G.nodes[closest_grid]["lon"], G.nodes[closest_grid]["lat"]
-            dist_m = max(5.0, haversine_m(u_lon, u_lat, g_lon, g_lat))
-            travel_s = dist_m / (40.0 * 1000.0 / 3600.0)
-
-            G.add_edge(
-                u_id,
-                closest_grid,
-                length_m=dist_m,
-                speed_kph=40.0,
-                travel_s=travel_s,
-                highway_class="secondary",
-                oneway=False,
-            )
-            G.add_edge(
-                closest_grid,
-                u_id,
-                length_m=dist_m,
-                speed_kph=40.0,
-                travel_s=travel_s,
-                highway_class="secondary",
-                oneway=False,
-            )
+            best = min((segments[k] for k in keys), key=lambda seg: HIGHWAY_RANK[seg["highway"]])
+            speed = HIGHWAY_SPEED_KPH[best["highway"]]
+            name = next((segments[k]["name"] for k in keys if segments[k]["name"]), None)
+            length_m = max(length_m, 1.0)
+            attrs = {
+                "length": length_m,
+                "length_m": length_m,
+                "speed_kph": speed,
+                "travel_s": length_m / (speed * 1000.0 / 3600.0),
+                "highway_class": best["highway"],
+                "name": name,
+                "osm_way_id": best["way_id"],
+                "oneway": False,
+            }
+            # Parallel streets between the same two junctions: keep the shorter one
+            if G.has_edge(u, v) and G[u][v]["length"] <= length_m:
+                continue
+            G.add_edge(u, v, geometry=geometry, **attrs)
+            G.add_edge(v, u, geometry=geometry[::-1], **attrs)
 
     return G
 
 
 async def persist_to_database(db: AsyncSession, G: nx.DiGraph) -> None:
-    """Populate road_nodes and road_edges tables in PostgreSQL."""
-    logger.info("checking_existing_road_network_tables")
+    """Replace road_nodes and road_edges in PostgreSQL with the graph (edges keep street shape)."""
+    logger.info("replacing_road_network_tables")
+    await db.execute(delete(RoadEdge))
+    await db.execute(delete(RoadNode))
 
-    count_res = await db.execute(select(func.count()).select_from(RoadNode))
-    existing_nodes = count_res.scalar_one()
+    node_rows = [
+        {"id": int(n), "geom": from_shape(Point(d["lon"], d["lat"]), srid=4326)}
+        for n, d in G.nodes(data=True)
+    ]
+    for i in range(0, len(node_rows), 5000):
+        await db.execute(insert(RoadNode), node_rows[i : i + 5000])
+    logger.info("road_nodes_inserted", count=len(node_rows))
 
-    if existing_nodes > 0:
-        logger.info("road_nodes_already_populated", count=existing_nodes)
-        return
-
-    logger.info("inserting_road_nodes", count=G.number_of_nodes())
-    # 1. Insert Nodes in batches
-    node_objects = []
-    for n_id, data in G.nodes(data=True):
-        pt = from_shape(Point(data["lon"], data["lat"]), srid=4326)
-        node_objects.append(RoadNode(id=n_id, geom=pt))
-
-    db.add_all(node_objects)
-    await db.flush()
-
-    # 2. Insert Edges in batches
-    logger.info("inserting_road_edges", count=G.number_of_edges())
-    edge_objects = []
-    for u, v, data in G.edges(data=True):
-        u_pt = (G.nodes[u]["lon"], G.nodes[u]["lat"])
-        v_pt = (G.nodes[v]["lon"], G.nodes[v]["lat"])
-        line = from_shape(LineString([u_pt, v_pt]), srid=4326)
-
-        edge_objects.append(
-            RoadEdge(
-                u=u,
-                v=v,
-                key=0,
-                osm_way_id=None,
-                highway_class=data.get("highway_class", "residential"),
-                length_m=data["length_m"],
-                speed_kph=data["speed_kph"],
-                travel_s=data["travel_s"],
-                oneway=data.get("oneway", False),
-                geom=line,
-            )
-        )
-
-        if len(edge_objects) >= 2000:
-            db.add_all(edge_objects)
-            await db.flush()
-            edge_objects = []
-
-    if edge_objects:
-        db.add_all(edge_objects)
-        await db.flush()
+    edge_rows = [
+        {
+            "u": int(u),
+            "v": int(v),
+            "key": 0,
+            "osm_way_id": d.get("osm_way_id"),
+            "highway_class": d["highway_class"],
+            "length_m": d["length_m"],
+            "speed_kph": d["speed_kph"],
+            "travel_s": d["travel_s"],
+            "oneway": d["oneway"],
+            "geom": from_shape(LineString(d["geometry"]), srid=4326),
+        }
+        for u, v, d in G.edges(data=True)
+    ]
+    for i in range(0, len(edge_rows), 5000):
+        await db.execute(insert(RoadEdge), edge_rows[i : i + 5000])
+    logger.info("road_edges_inserted", count=len(edge_rows))
 
     await db.commit()
-    logger.info("database_persistence_complete")
 
 
 def save_artifacts(G: nx.DiGraph) -> None:
@@ -304,8 +245,12 @@ def save_artifacts(G: nx.DiGraph) -> None:
         "node_count": G.number_of_nodes(),
         "edge_count": G.number_of_edges(),
         "bbox": BBOX,
-        "extraction_date": datetime.now(UTC).isoformat(),
-        "version": "1.0.0",
+        "source": (
+            "OpenStreetMap drivable roads via Overpass API (© OpenStreetMap contributors, ODbL)"
+        ),
+        "extraction_date": G.graph.get("osm_timestamp"),
+        "built_at": datetime.now(UTC).isoformat(),
+        "version": "2.0.0",
     }
 
     logger.info("saving_manifest", path=manifest_path, manifest=manifest)
@@ -313,26 +258,28 @@ def save_artifacts(G: nx.DiGraph) -> None:
         json.dump(manifest, f, indent=2)
 
 
+def build_road_graph() -> nx.DiGraph:
+    """Build the routing graph from the (cached) OSM extract."""
+    osm = fetch_overpass_roads()
+    G = build_graph_from_osm(osm)
+    G.graph["osm_timestamp"] = osm.get("osm3s", {}).get("timestamp_osm_base")
+    return G
+
+
 async def main() -> None:
     setup_logging("INFO")
     logger.info("building_road_graph_for_chennai_core", bbox=BBOX)
 
-    G = build_chennai_road_graph()
+    G = build_road_graph()
     logger.info("graph_built", nodes=G.number_of_nodes(), edges=G.number_of_edges())
 
     save_artifacts(G)
 
-    try:
-        engine = create_async_engine(settings.DATABASE_URL, echo=False)
-        session_maker = async_sessionmaker(engine, expire_on_commit=False)
-        async with session_maker() as session:
-            await persist_to_database(session, G)
-        await engine.dispose()
-    except Exception as e:
-        logger.warning(
-            "database_save_skipped",
-            reason=f"Could not connect to database or already seeded: {e}",
-        )
+    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    session_maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_maker() as session:
+        await persist_to_database(session, G)
+    await engine.dispose()
 
 
 if __name__ == "__main__":

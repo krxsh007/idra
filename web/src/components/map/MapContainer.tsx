@@ -67,6 +67,7 @@ const toRouteCollections = (routes: EvacuationRoute[], facilities: Facility[]) =
           duration_min: Math.max(1, Math.round(r.duration_s / 60)),
           hazard_avoided: r.hazard_avoided,
           traverses_hazard: r.traverses_hazard,
+          starts_in_hazard: !!r.starts_in_hazard,
           blocked_edges_avoided: r.blocked_edges_avoided,
           rationale: r.rationale,
         },
@@ -266,11 +267,12 @@ export const MapContainer: React.FC<MapContainerProps> = ({
       map.on('click', 'evac-routes-line', (e) => {
         if (!e.features || !e.features[0]) return;
         const props = e.features[0].properties;
+        const startLine = props?.starts_in_hazard
+          ? '<div class="mt-1 text-amber-700 font-bold">↗ Starts inside a hazard zone: shortest way out</div>'
+          : '';
         const hazardLine = props?.traverses_hazard
           ? '<div class="mt-1 text-red-700 font-bold">⚠️ Passes through a hazard zone (no safe alternative)</div>'
-          : props?.hazard_avoided
-            ? '<div class="mt-1 text-emerald-700 font-bold">✓ Hazard zones avoided</div>'
-            : '';
+          : '<div class="mt-1 text-emerald-700 font-bold">✓ Avoids all other hazard zones</div>';
         routePopupRef.current?.remove();
         routePopupRef.current = new Popup({ closeButton: true, className: 'idra-map-popup' })
           .setLngLat(e.lngLat)
@@ -278,6 +280,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
             `<div class="p-2 text-xs font-sans max-w-xs">
               <div class="font-bold text-sm text-slate-900">Route to ${escapeHtml(String(props?.destination_name ?? ''))}</div>
               <div class="mt-1 text-slate-700">${props?.distance_km} km &bull; ~${props?.duration_min} min</div>
+              ${startLine}
               ${hazardLine}
               <div class="mt-1 text-slate-600">${escapeHtml(String(props?.rationale ?? ''))}</div>
             </div>`

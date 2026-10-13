@@ -4,7 +4,7 @@ import structlog
 
 from app.agents.base import AgentFailure, BaseAgent, RunContext
 from app.db.models.enums import AgentName, FacilityType
-from app.gis.spatial import get_nearby_facilities
+from app.gis.spatial import get_facility_ids_in_hazard_zones, get_nearby_facilities
 from app.schemas.agents.facilities import (
     FacilityCandidate,
     FacilityRecommendationInput,
@@ -63,6 +63,18 @@ class FacilityRecommendationAgent(
             is_operational=True,
             limit=10,
         )
+
+        # Never send people into a hazard zone: drop facilities located inside one.
+        in_hazard = await get_facility_ids_in_hazard_zones(ctx.db, input_data.event.id)
+        excluded = [
+            item.facility.name
+            for item in [*hospitals_res, *shelters_res]
+            if item.facility.id in in_hazard
+        ]
+        hospitals_res = [item for item in hospitals_res if item.facility.id not in in_hazard]
+        shelters_res = [item for item in shelters_res if item.facility.id not in in_hazard]
+        if excluded:
+            log.info("facilities_in_hazard_zones_excluded", facilities=excluded)
 
         # 2. Build Candidate lists
         recommended_hospitals: list[FacilityCandidate] = []
@@ -135,8 +147,13 @@ class FacilityRecommendationAgent(
         rationale = (
             f"Identified {len(top_hospitals)} operational hospitals with {total_hosp_avail} "
             f"available beds and {len(top_shelters)} emergency shelters with {total_shelter_avail} "
-            f"capacity within search radius. Ranked by proximity and backup power availability."
+            f"capacity within search radius, outside all hazard zones. Ranked by proximity and "
+            f"backup power availability."
         )
+        if excluded:
+            rationale += (
+                f" Excluded {len(excluded)} inside hazard zones: {', '.join(excluded[:5])}."
+            )
 
         return FacilityRecommendationOutput(
             recommended_hospitals=top_hospitals,
