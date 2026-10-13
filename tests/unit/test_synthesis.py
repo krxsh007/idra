@@ -152,3 +152,37 @@ async def test_synthesis_falls_back_when_llm_exceeds_budget():
     # The agent returns its deterministic baseline instead of timing out as a whole.
     assert isinstance(out, SynthesisOutput)
     assert len(out.recommendations) >= 5
+
+
+def test_synthesis_consistency_accepts_real_facility_after_leading_verb():
+    agent = SynthesisAgent()
+    allowed = {"Guindy Higher Secondary School Camp"}
+    candidate = SynthesisOutput(
+        executive_summary="Overview of flood operations.",
+        recommendations=[
+            SynthesisItem(
+                priority=1,
+                agent=AgentName.RESOURCE_COORDINATION,
+                title="Dispatch Guindy Higher Secondary School resources",
+                body="Stage boats at the camp.",
+            )
+        ],
+    )
+    assert agent._validate_consistency(candidate, allowed) is True
+
+
+def test_synthesis_consistency_rejects_invented_name_sharing_suffix():
+    agent = SynthesisAgent()
+    allowed = {"Guindy Higher Secondary School Camp"}
+    candidate = SynthesisOutput(
+        executive_summary="Overview of flood operations.",
+        recommendations=[
+            SynthesisItem(
+                priority=1,
+                agent=AgentName.RESOURCE_COORDINATION,
+                title="Evacuate to Adyar Higher Secondary School",
+                body="Move residents now.",
+            )
+        ],
+    )
+    assert agent._validate_consistency(candidate, allowed) is False

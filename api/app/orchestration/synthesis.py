@@ -22,6 +22,22 @@ logger = structlog.get_logger(__name__)
 PROMPT_TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "llm" / "prompts" / "synthesis.md"
 
 
+def _ends_with_name_prefix(phrase: str, allowed_name: str) -> bool:
+    """True if `phrase` ends with the leading words of `allowed_name` (at least two).
+
+    The facility regex also captures capitalised words before a name ("Dispatch Guindy
+    Higher Secondary School"), and models often drop a trailing word ("... Camp").
+    Anchoring on the name's first word keeps invented names ("Adyar Higher Secondary
+    School") rejected.
+    """
+    phrase_words = phrase.lower().split()
+    name_words = allowed_name.lower().split()
+    for k in range(min(len(phrase_words), len(name_words)), 1, -1):
+        if phrase_words[-k:] == name_words[:k]:
+            return True
+    return False
+
+
 class SynthesisAgent(BaseAgent[SynthesisInput, SynthesisOutput]):
     """Synthesizes agent outputs into a prioritized briefing with consistency checking."""
 
@@ -181,7 +197,9 @@ class SynthesisAgent(BaseAgent[SynthesisInput, SynthesisOutput]):
             if len(cleaned) < 5:
                 continue
             is_valid = any(
-                cleaned.lower() in allowed.lower() or allowed.lower() in cleaned.lower()
+                cleaned.lower() in allowed.lower()
+                or allowed.lower() in cleaned.lower()
+                or _ends_with_name_prefix(cleaned, allowed)
                 for allowed in allowed_facility_names
             )
             if not is_valid and allowed_facility_names:
