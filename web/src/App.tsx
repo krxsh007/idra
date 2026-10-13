@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { ClipboardList, FileText } from 'lucide-react';
 import { Header } from './components/layout/Header';
@@ -15,7 +15,7 @@ import { ReportSubmissionModal } from './components/reports/ReportSubmissionModa
 import { useAuthStore } from './stores/authStore';
 import { useEventStore } from './stores/eventStore';
 import { api } from './lib/api';
-import { EpicenterPoint } from './types/api';
+import { EpicenterPoint, EvacuationRoute } from './types/api';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -81,6 +81,22 @@ const Dashboard: React.FC = () => {
     queryFn: () => api.getFacilities(),
   });
 
+  // Runs for the selected event (newest first; shares RunTimeline's cache and polling)
+  const { data: runsData } = useQuery({
+    queryKey: ['runs', selectedEvent?.id],
+    queryFn: () => (selectedEvent ? api.getEventRuns(selectedEvent.id) : { items: [], total: 0 }),
+    enabled: !!selectedEvent?.id,
+  });
+
+  // Routes from the newest run that has evacuation output, so a run in progress keeps the last plan visible
+  const evacuationRoutes = useMemo<EvacuationRoute[]>(() => {
+    for (const run of runsData?.items ?? []) {
+      const routing = run.outputs.find((o) => o.agent === 'EVACUATION' && o.payload?.routes);
+      if (routing) return routing.payload!.routes as EvacuationRoute[];
+    }
+    return [];
+  }, [runsData]);
+
   const handleStartLocationPick = (callback: (coords: EpicenterPoint) => void) => {
     setOnPickCallback(() => callback);
     setIsPickingLocation(true);
@@ -130,6 +146,7 @@ const Dashboard: React.FC = () => {
             hazardZones={hazardZonesData?.items || []}
             reports={reportsData?.items || []}
             facilities={facilitiesData?.items || []}
+            routes={evacuationRoutes}
             onMapClick={handleMapClick}
             isPickingLocation={isPickingLocation}
             focusCoordinates={focusCoordinates}
