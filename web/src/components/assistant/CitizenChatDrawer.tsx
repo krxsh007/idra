@@ -53,7 +53,7 @@ export const CitizenChatDrawer: React.FC<CitizenChatDrawerProps> = ({ eventId })
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold text-xs rounded-full shadow-2xl transition-transform hover:scale-105"
+          className="absolute bottom-10 right-4 z-40 flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-semibold text-xs rounded-full shadow-2xl transition-transform hover:scale-105"
         >
           <MessageSquare className="w-4 h-4" />
           <span>Citizen Emergency Assistant</span>
@@ -62,7 +62,7 @@ export const CitizenChatDrawer: React.FC<CitizenChatDrawerProps> = ({ eventId })
 
       {/* Slide-out Drawer */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-96 max-h-[85vh] h-[550px] bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="absolute bottom-10 right-4 z-50 w-96 max-w-[calc(100%-2rem)] max-h-[calc(100%-3.5rem)] h-[550px] bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
           {/* Header */}
           <div className="p-3.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
