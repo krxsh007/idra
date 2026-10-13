@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -187,9 +188,9 @@ class RescuePlanningAgent(BaseAgent[RescuePlanningInput, RescuePlanningOutput]):
                     .replace("{sop_context}", sop_context_str)
                 )
 
-                llm_res: RescuePlanningOutput = await ctx.llm.structured(
-                    prompt=prompt,
-                    response_schema=RescuePlanningOutput,
+                llm_res: RescuePlanningOutput = await asyncio.wait_for(
+                    ctx.llm.structured(prompt=prompt, response_schema=RescuePlanningOutput),
+                    timeout=ctx.llm_budget_s,
                 )
 
                 # Validate LLM output: ensure contiguous priorities and no forbidden language

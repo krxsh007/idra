@@ -1,3 +1,4 @@
+import asyncio
 import time
 import uuid
 from collections.abc import AsyncGenerator, Awaitable, Callable
@@ -41,6 +42,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from app.gis.graph import road_graph_manager
 
     road_graph_manager.load_graph()
+
+    # Load the embedding model up front: a cold load can exceed the citizen agent's timeout.
+    from app.rag.embeddings import EmbeddingService
+
+    await asyncio.to_thread(EmbeddingService.get_instance().embed_text, "warmup")
     yield
     logger.info("idra_shutdown")
 

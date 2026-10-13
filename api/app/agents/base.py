@@ -40,6 +40,11 @@ class RunContext(BaseModel):
     timeout_s: float = 30.0
     max_repair_retries: int = 1
 
+    @property
+    def llm_budget_s(self) -> float:
+        """Share of the agent timeout an optional LLM step may use, leaving time to fall back."""
+        return self.timeout_s * 0.75
+
 
 class BaseAgent(ABC, Generic[InputT, OutputT]):
     """Abstract Base Class for IDRA intelligent agents with timeout and repair handling."""

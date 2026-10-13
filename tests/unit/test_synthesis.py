@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import UTC, datetime
 
@@ -25,17 +26,8 @@ def make_event() -> EventResponse:
     )
 
 
-@pytest.mark.asyncio
-async def test_synthesis_deterministic_priorities():
-    event = make_event()
-    agent = SynthesisAgent()
-    ctx = RunContext(
-        event_id=event.id,
-        agent_name=agent.agent_name,
-        llm=FakeLLMClient(),
-    )
-
-    input_data = SynthesisInput(
+def make_input(event: EventResponse) -> SynthesisInput:
+    return SynthesisInput(
         event=event,
         assessment_output={"severity": "HIGH", "estimated_people_affected": 300},
         planning_output={
@@ -93,6 +85,19 @@ async def test_synthesis_deterministic_priorities():
         conflicts_output={"conflicts_resolved": ["Reassigned 20 evacuees to secondary shelter."]},
     )
 
+
+@pytest.mark.asyncio
+async def test_synthesis_deterministic_priorities():
+    event = make_event()
+    agent = SynthesisAgent()
+    ctx = RunContext(
+        event_id=event.id,
+        agent_name=agent.agent_name,
+        llm=FakeLLMClient(),
+    )
+
+    input_data = make_input(event)
+
     out = await agent.run(ctx, input_data)
 
     assert len(out.recommendations) >= 5
@@ -124,3 +129,26 @@ def test_synthesis_consistency_catches_hallucinated_facility():
 
     is_valid = agent._validate_consistency(candidate, allowed)
     assert is_valid is False
+
+
+class _HangingLLM(FakeLLMClient):
+    async def structured(self, *args, **kwargs):
+        await asyncio.sleep(60)
+
+
+@pytest.mark.asyncio
+async def test_synthesis_falls_back_when_llm_exceeds_budget():
+    event = make_event()
+    agent = SynthesisAgent()
+    ctx = RunContext(
+        event_id=event.id,
+        agent_name=agent.agent_name,
+        llm=_HangingLLM(),
+        timeout_s=0.4,
+    )
+
+    out = await agent.run(ctx, make_input(event))
+
+    # The agent returns its deterministic baseline instead of timing out as a whole.
+    assert isinstance(out, SynthesisOutput)
+    assert len(out.recommendations) >= 5
