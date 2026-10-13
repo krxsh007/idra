@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from pathlib import Path
@@ -246,12 +247,17 @@ class SynthesisAgent(BaseAgent[SynthesisInput, SynthesisOutput]):
                 .replace("{conflicts_json}", json.dumps(conflicts_noted, indent=2))
             )
 
-            # Try up to 2 attempts (1 initial + 1 repair regeneration)
+            # Try up to 2 attempts (1 initial + 1 repair regeneration), within the LLM budget
+            # so a slow provider still leaves time to return the deterministic baseline.
+            deadline = asyncio.get_running_loop().time() + ctx.llm_budget_s
             for attempt in range(2):
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    break
                 try:
-                    res: SynthesisOutput = await ctx.llm.structured(
-                        prompt=prompt,
-                        response_schema=SynthesisOutput,
+                    res: SynthesisOutput = await asyncio.wait_for(
+                        ctx.llm.structured(prompt=prompt, response_schema=SynthesisOutput),
+                        timeout=remaining,
                     )
                     if res and len(res.recommendations) > 0:
                         # Enforce priority locking from deterministic mapping

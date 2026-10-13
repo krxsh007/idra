@@ -71,7 +71,10 @@ async def query_assistant(
         escalated=False,
     )
     db.add(user_msg)
-    await db.flush()
+    # Persist the user turn before running the agent: a timed-out agent can leave the
+    # transaction unusable, and the rollback below must not discard this turn.
+    await db.commit()
+    session_id = session.id
 
     # 3. Execute Citizen Assistance Agent
     start_time = time.perf_counter()
@@ -88,13 +91,14 @@ async def query_assistant(
     latency_ms = int((time.perf_counter() - start_time) * 1000)
 
     if isinstance(result, AgentFailure):
+        await db.rollback()
         logger.warning(
             "citizen_agent_failure_fallback",
             code=result.code,
             message=result.message,
         )
         response = CitizenQueryResponse(
-            session_id=session.id,
+            session_id=session_id,
             answer=SAFE_FALLBACK_TEXT,
             citations=[],
             nearest_facilities=[],
@@ -124,13 +128,13 @@ async def query_assistant(
         db.add(escalated_report)
         logger.info(
             "citizen_report_escalated",
-            session_id=str(session.id),
+            session_id=str(session_id),
             safety_flag=response.safety_flag,
         )
 
     # 5. Record Assistant Message Turn
     assistant_msg = ChatMessage(
-        session_id=session.id,
+        session_id=session_id,
         role="ASSISTANT",
         content=response.answer,
         citations=[c.model_dump(mode="json") for c in response.citations],

@@ -14,6 +14,9 @@ if PROJECT_ROOT not in sys.path:
 if API_DIR not in sys.path:
     sys.path.insert(0, API_DIR)
 
+# Tests must stay offline and deterministic even when the developer's .env points at a real LLM.
+os.environ["LLM_BACKEND"] = "fake"
+
 from app.main import app  # noqa: E402
 
 

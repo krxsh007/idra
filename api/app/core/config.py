@@ -46,7 +46,8 @@ class Settings(BaseSettings):
     # --- llm ---
     LLM_BACKEND: str = "fake"
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash"
+    GEMINI_FALLBACK_MODEL: str = ""
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3.1:8b"
     LLM_TIMEOUT_S: int = 25
