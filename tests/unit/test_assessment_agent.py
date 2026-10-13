@@ -198,8 +198,9 @@ async def test_assessment_agent_execution_and_clamping():
 
 
 @pytest.mark.asyncio
-async def test_agent_timeout_handling():
-    """Agent handles timeout gracefully and returns AGENT_TIMEOUT failure."""
+async def test_slow_llm_provider_reported_as_unavailable():
+    """A provider slower than the LLM budget is reported as LLM_UNAVAILABLE (not a timeout),
+    so the pipeline continues on its degraded baseline instead of stopping."""
     agent = DisasterAssessmentAgent()
     event = create_sample_event()
     input_data = AssessmentInput(event=event)
@@ -211,17 +212,42 @@ async def test_agent_timeout_handling():
             await asyncio.sleep(0.5)
             return super().structured(*args, **kwargs)
 
-    slow_llm = SlowLLM()
     ctx = RunContext(
         event_id=event.id,
         agent_name=AgentName.DISASTER_ASSESSMENT,
-        llm=slow_llm,
-        timeout_s=0.05,
+        llm=SlowLLM(),
+        timeout_s=0.1,
     )
 
     with patch("app.agents.assessment.retriever.search", new_callable=AsyncMock) as mock_search:
         mock_search.return_value = [chunk]
 
+        result = await agent.run(ctx, input_data)
+
+        assert isinstance(result, AgentFailure)
+        assert result.status == AgentStatus.FAILED
+        assert result.code == "LLM_UNAVAILABLE"
+
+
+@pytest.mark.asyncio
+async def test_agent_timeout_handling():
+    """Slowness outside the LLM call (here: retrieval) still ends in AGENT_TIMEOUT."""
+    agent = DisasterAssessmentAgent()
+    event = create_sample_event()
+    input_data = AssessmentInput(event=event)
+
+    async def slow_search(*args, **kwargs):
+        await asyncio.sleep(0.5)
+        return [create_dummy_chunk()]
+
+    ctx = RunContext(
+        event_id=event.id,
+        agent_name=AgentName.DISASTER_ASSESSMENT,
+        llm=FakeLLMClient(),
+        timeout_s=0.05,
+    )
+
+    with patch("app.agents.assessment.retriever.search", side_effect=slow_search):
         result = await agent.run(ctx, input_data)
 
         assert isinstance(result, AgentFailure)

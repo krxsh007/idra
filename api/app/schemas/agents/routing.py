@@ -34,7 +34,7 @@ class ComputedRouteItem(BaseModel):
     traverses_hazard: bool
     starts_in_hazard: bool = False
     blocked_edges_avoided: int = 0
-    algorithm: str = "dijkstra_hazard_penalty"
+    algorithm: str = "astar_hazard_penalty"
     rationale: str = Field(..., min_length=5, max_length=500)
 
 

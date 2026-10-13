@@ -13,13 +13,19 @@ from sqlalchemy.orm import selectinload
 
 from app.core.errors import AppException, ErrorCode
 from app.core.security import require_responder
-from app.db.models.enums import RunStatus
+from app.db.models.base import utc_now
+from app.db.models.enums import AgentName, RunStatus
 from app.db.models.runs import AgentRun
 from app.db.models.users import User
 from app.db.session import get_db
 from app.llm.client import get_llm_client
 from app.orchestration.engine import orchestration_engine
-from app.schemas.runs import RunDetailResponse, RunListResponse, TriggerRunRequest
+from app.schemas.runs import (
+    AgentOutputResponse,
+    RunDetailResponse,
+    RunListResponse,
+    TriggerRunRequest,
+)
 
 router = APIRouter(tags=["Orchestration Runs"])
 
@@ -106,6 +112,31 @@ async def trigger_event_run(
     )
 
 
+def _with_live_outputs(run: AgentRun) -> RunDetailResponse:
+    """Serialize a run; while it is still running, include agents that have already finished.
+
+    Outputs are persisted when the whole pipeline completes, so without this an in-progress run
+    shows no results until the very end.
+    """
+    detail = RunDetailResponse.model_validate(run)
+    if run.status != RunStatus.RUNNING or detail.outputs:
+        return detail
+    live = [
+        AgentOutputResponse(
+            id=uuid.uuid4(),
+            agent=AgentName(rec["agent"]),
+            status=rec["status"],
+            payload=rec.get("payload"),
+            latency_ms=rec.get("latency_ms"),
+            error_code=rec.get("error_code"),
+            error_message=rec.get("error_message"),
+            created_at=utc_now(),
+        )
+        for rec in orchestration_engine.get_live_outputs(str(run.id))
+    ]
+    return detail.model_copy(update={"outputs": live})
+
+
 @router.get(
     "/events/{event_id}/runs",
     response_model=RunListResponse,
@@ -132,7 +163,7 @@ async def list_event_runs(
     items = (await db.execute(stmt)).scalars().all()
 
     return {
-        "items": items,
+        "items": [_with_live_outputs(run) for run in items],
         "total": total,
         "limit": limit,
         "offset": offset,
@@ -157,7 +188,7 @@ async def get_run_detail(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Agent run {run_id} not found",
         )
-    return run_record
+    return _with_live_outputs(run_record)
 
 
 @router.get(
