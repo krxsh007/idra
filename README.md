@@ -15,8 +15,8 @@
    - Operates over a pre-built Chennai OpenStreetMap road network (`1,748` nodes, `6,820` edges in `artifacts/road_graph.pkl`) with PostGIS polygon intersection (`ST_Intersects`) and explicit reporting of unreachable destinations when a location is fully enclosed.
 4. **Human-in-the-Loop Verification Gate:**
    - Every AI-generated recommendation enters the database as `PENDING` with `is_committed = False`. Only an authenticated `ADMIN` can verify, override, or reject recommendations and commit resource allocations.
-5. **Tactical Command Center & Multilingual Citizen Portal (`web/`):**
-   - Next.js 14 App Router + MapLibre GL JS tactical dark interface with `OriginBadge`, `ProvenanceTag` (`REAL` vs `SIMULATED`), live SSE `AgentTraceDrawer`, and English/Tamil/Hindi Citizen Assistant (`/citizen`).
+5. **Tactical Command Center & Citizen Assistant (`web/`):**
+   - Vite + React 18 + MapLibre GL JS dark tactical dashboard: hazard/report/facility map layers, live run timeline, prioritised briefing with origin badges and `REAL` vs `SIMULATED` provenance tags, and a Citizen Emergency Assistant chat drawer with urgent-escalation detection.
 
 ---
 

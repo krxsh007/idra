@@ -1,8 +1,8 @@
 # IDRA Testing & Evaluation Report (Artifact 13)
 
 > **Generated automatically by `scripts/run_eval.py` from measured harness output (`artifacts/eval_results.json`).**
-> - **Timestamp (UTC):** `2026-10-09T05:12:00.789826+00:00`
-> - **LLM Backend:** `fake`
+> - **Timestamp (UTC):** `2026-10-13T13:08:40.773052+00:00`
+> - **LLM Backend:** `gemini`
 > - **Automated Metrics Passed:** `34 / 34` (`100.0%`)
 > - **UI Human Cohort Status:** `AWAITING_HUMAN_PARTICIPANTS`
 
@@ -25,13 +25,13 @@ Measured over `retrieval_queries.json` (40 in-domain queries + 5 out-of-domain f
 
 | Metric | Measured | Target | Status |
 |---|---|---|---|
-| `retrieval_precision_at_5` | `0.92` | `>= 0.7` | **PASS** |
-| `retrieval_recall_at_8` | `0.8042` | `>= 0.75` | **PASS** |
-| `retrieval_mrr_at_8` | `0.8375` | `>= 0.8` | **PASS** |
+| `retrieval_precision_at_5` | `0.7654` | `>= 0.7` | **PASS** |
+| `retrieval_recall_at_8` | `0.9917` | `>= 0.75` | **PASS** |
+| `retrieval_mrr_at_8` | `0.9875` | `>= 0.8` | **PASS** |
 | `citation_resolution_rate` | `1.0` | `>= 0.95` | **PASS** |
 | `zero_llm_call_on_floor_miss_rate` | `1.0` | `== 1.0` | **PASS** |
-| `retrieval_latency_p50_ms` | `2.12` | `<= 150.0` | **PASS** |
-| `retrieval_latency_p95_ms` | `2.23` | `<= 250.0` | **PASS** |
+| `retrieval_latency_p50_ms` | `14.09` | `<= 150.0` | **PASS** |
+| `retrieval_latency_p95_ms` | `19.04` | `<= 250.0` | **PASS** |
 | `inter_annotator_cohens_kappa` | `0.89` | `>= 0.8` | **PASS** |
 
 ---
@@ -69,8 +69,8 @@ Measured over `routing_cases.json` (10 detour cases + 5 hazard-enclosure cases) 
 | `distance_sum_accuracy_within_1m_rate` | `1.0` | `== 1.0` | **PASS** |
 | `hazard_avoidance_rate_detour_cases` | `1.0` | `>= 0.9` | **PASS** |
 | `enclosure_degradation_accuracy` | `1.0` | `== 1.0` | **PASS** |
-| `route_computation_latency_p50_ms` | `3.59` | `<= 100.0` | **PASS** |
-| `route_computation_latency_p95_ms` | `5.55` | `<= 250.0` | **PASS** |
+| `route_computation_latency_p50_ms` | `3.75` | `<= 100.0` | **PASS** |
+| `route_computation_latency_p95_ms` | `5.92` | `<= 250.0` | **PASS** |
 
 ---
 
@@ -84,8 +84,8 @@ Measured over full orchestration runs on the 3 canonical scenarios (`chennai_flo
 | `tier_b_llm_disabled_survival_rate` | `1.0` | `== 1.0` | **PASS** |
 | `verification_gate_enforcement_rate` | `1.0` | `== 1.0` | **PASS** |
 | `concurrent_graph_immutability_rate` | `1.0` | `== 1.0` | **PASS** |
-| `orchestration_run_latency_p50_ms` | `27.5` | `<= 5000.0` | **PASS** |
-| `orchestration_run_latency_p95_ms` | `32.12` | `<= 15000.0` | **PASS** |
+| `orchestration_run_latency_p50_ms` | `29.79` | `<= 5000.0` | **PASS** |
+| `orchestration_run_latency_p95_ms` | `39.06` | `<= 15000.0` | **PASS** |
 
 ---
 
@@ -129,7 +129,7 @@ Per Artifact 15 Rule 5 (*"Never write a metric value you did not measure, and ne
 
 ### Root-Cause Analysis & Technical Discussion
 1. **RAG Recall@8 and MRR@8 under Offline Feature-Hashed Embeddings (`LLM_BACKEND=fake`):**
-   - Under the deterministic feature-hashed vector fallback (`LLM_BACKEND=fake`), `retrieval_precision_at_5` reaches `0.92`, `retrieval_recall_at_8` reaches `0.8042`, `retrieval_mrr_at_8` reaches `0.8375`, and `zero_llm_call_on_floor_miss_rate` achieves `1.00`.
+   - Under the deterministic feature-hashed vector fallback (`LLM_BACKEND=fake`), `retrieval_precision_at_5` reaches `0.7654`, `retrieval_recall_at_8` reaches `0.9917`, `retrieval_mrr_at_8` reaches `0.9875`, and `zero_llm_call_on_floor_miss_rate` achieves `1.00`.
    - **Trade-off:** Feature hashing projects tokens and 4-5 character prefixes into 384 signed buckets without neural synonym expansion. Preserving a strict `RAG_SCORE_FLOOR = 0.35` guarantees `100%` rejection of out-of-domain queries (`zero_llm_call_on_floor_miss_rate = 1.0`), prioritizing zero hallucination over permissive recall.
 2. **In-Memory NetworkX Road Graph Scope:**
    - Routing operates over a single-process in-memory NetworkX graph (`1,748` nodes, `6,820` edges) bounded to `STUDY_AREA_BBOX` (`80.15, 12.95, 80.30, 13.15`). Scaling to state-wide multi-million-edge road networks requires migrating Stage-0/1 shortest-path queries to `pgRouting` (`ADR-005`).
