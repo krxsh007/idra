@@ -27,6 +27,8 @@ export const RunTimeline: React.FC<RunTimelineProps> = ({ eventId }) => {
     statuses: {},
   });
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // Fold the stage list away to give the briefing below the full sidebar height.
+  const [stagesHidden, setStagesHidden] = useState(false);
 
   const { data: runsData } = useQuery({
     queryKey: ['runs', eventId],
@@ -103,11 +105,12 @@ export const RunTimeline: React.FC<RunTimelineProps> = ({ eventId }) => {
     if (streamedStatus) return streamedStatus;
     const output = findOutput(agentKey);
     if (output) return output.status;
+    if (agentKey === 'CONFLICT_RESOLVER' && hasFinished(agentKey)) return 'COMPLETED';
     if (latestRun.status === 'RUNNING') {
-      if (agentKey === 'CONFLICT_RESOLVER' && hasFinished(agentKey)) return 'COMPLETED';
       return agentKey === firstUnfinished ? 'RUNNING' : 'PENDING';
     }
     if (latestRun.status === 'COMPLETED') return 'COMPLETED';
+    // Finished PARTIAL/FAILED runs: stages without output never ran (e.g. the pipeline stopped).
     return 'PENDING';
   };
 
@@ -157,8 +160,19 @@ export const RunTimeline: React.FC<RunTimelineProps> = ({ eventId }) => {
         </div>
       )}
 
+      {latestRun && (
+        <button
+          type="button"
+          onClick={() => setStagesHidden((v) => !v)}
+          className="mb-2 inline-flex items-center gap-0.5 text-[10px] text-sky-400 hover:text-sky-300"
+        >
+          {stagesHidden ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          {stagesHidden ? 'Show pipeline stages' : 'Hide pipeline stages'}
+        </button>
+      )}
+
       {/* Agents Timeline Steps */}
-      <div className="space-y-2">
+      <div className={`space-y-2 ${stagesHidden ? 'hidden' : ''}`}>
         {AGENT_ORDER.map(({ key, label, tier }) => {
           const status = getAgentStatus(key);
           const isDone = status === 'COMPLETED' || status === 'SUCCESS';
