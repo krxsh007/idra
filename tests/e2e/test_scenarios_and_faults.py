@@ -362,6 +362,15 @@ async def test_e2e_all_three_scenarios_and_invariants(scenario_idx: int) -> None
         assert rec.verification_status == VerificationStatus.PENDING
         assert rec.origin in ("AI_GENERATED", "DETERMINISTIC_COMPUTATION", "HUMAN_ENTERED")
         assert 1 <= rec.priority <= 5
+        # Confidence is never a constant: none for deterministic items, the assessment's
+        # own confidence for AI-written ones.
+        if rec.origin == "DETERMINISTIC_COMPUTATION":
+            assert rec.confidence is None
+        else:
+            assessment_out = next(
+                o for o in persisted_outputs if o.agent == AgentName.DISASTER_ASSESSMENT
+            )
+            assert rec.confidence == assessment_out.payload["confidence"]
 
     # Invariant 2: No resource over-commitment & operational DB state never mutated
     alloc_sums_by_res: dict[uuid.UUID, int] = {}

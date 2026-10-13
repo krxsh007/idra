@@ -186,3 +186,43 @@ def test_synthesis_consistency_rejects_invented_name_sharing_suffix():
         ],
     )
     assert agent._validate_consistency(candidate, allowed) is False
+
+
+@pytest.mark.asyncio
+async def test_accepted_llm_briefing_is_labelled_ai_generated():
+    """The model sees the deterministic draft and copies its origin; the code must relabel it."""
+    event = make_event()
+    agent = SynthesisAgent()
+    llm_briefing = SynthesisOutput(
+        executive_summary="Severe flooding in the canal and station sectors needs boat rescue.",
+        recommendations=[
+            SynthesisItem(
+                priority=1,
+                agent=AgentName.RESCUE_PLANNING,
+                title="Boat rescue for the Canal Zone",
+                body="Send rescue boats to the Canal Zone where residents are stranded.",
+                origin="DETERMINISTIC_COMPUTATION",
+            )
+        ],
+    )
+    ctx = RunContext(
+        event_id=event.id,
+        agent_name=agent.agent_name,
+        llm=FakeLLMClient(fixture_responses=[llm_briefing]),
+    )
+
+    out = await agent.run(ctx, make_input(event))
+
+    assert out.executive_summary == llm_briefing.executive_summary
+    assert [r.origin for r in out.recommendations] == ["AI_GENERATED"]
+
+
+@pytest.mark.asyncio
+async def test_deterministic_briefing_keeps_deterministic_origin():
+    event = make_event()
+    agent = SynthesisAgent()
+    ctx = RunContext(event_id=event.id, agent_name=agent.agent_name, llm=FakeLLMClient())
+
+    out = await agent.run(ctx, make_input(event))
+
+    assert {r.origin for r in out.recommendations} == {"DETERMINISTIC_COMPUTATION"}

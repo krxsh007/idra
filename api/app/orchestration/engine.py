@@ -280,6 +280,15 @@ class OrchestrationEngine:
             db.add(agent_output)
 
         # 6. Persist Prioritized Recommendations & Citations from Synthesis
+        # Confidence is only shown for AI-written items, and is the situation assessment's own
+        # confidence (the model's score, or the degraded baseline's) - never a made-up constant.
+        # Deterministic computations carry no confidence score.
+        assessment = final_state.get("assessment_output") or {}
+        assessment_confidence = assessment.get("confidence")
+
+        def confidence_for(origin: str) -> float | None:
+            return assessment_confidence if origin == "AI_GENERATED" else None
+
         synth_out = final_state.get("synthesis_output")
         if synth_out and isinstance(synth_out, dict) and synth_out.get("recommendations"):
             for rec_item in synth_out.get("recommendations", []):
@@ -297,7 +306,7 @@ class OrchestrationEngine:
                     title=rec_item.get("title", "Recommendation"),
                     body=rec_item.get("body", ""),
                     origin=rec_item.get("origin", "AI_GENERATED"),
-                    confidence=0.9,
+                    confidence=confidence_for(rec_item.get("origin", "AI_GENERATED")),
                     structured_ref=rec_item.get("structured_ref"),
                     verification_status=VerificationStatus.PENDING,
                 )
@@ -337,8 +346,8 @@ class OrchestrationEngine:
                             f"Recommended hospital with {hosp.get('available_capacity')} beds. "
                             f"Distance: {hosp.get('distance_m')}m."
                         ),
-                        origin="AI_GENERATED",
-                        confidence=0.9,
+                        origin="DETERMINISTIC_COMPUTATION",
+                        confidence=None,
                         structured_ref={"facility_id": hosp.get("facility_id")},
                         verification_status=VerificationStatus.PENDING,
                     )
@@ -355,8 +364,8 @@ class OrchestrationEngine:
                             f"Recommended shelter with {sh.get('available_capacity')} capacity. "
                             f"Distance: {sh.get('distance_m')}m."
                         ),
-                        origin="AI_GENERATED",
-                        confidence=0.85,
+                        origin="DETERMINISTIC_COMPUTATION",
+                        confidence=None,
                         structured_ref={"facility_id": sh.get("facility_id")},
                         verification_status=VerificationStatus.PENDING,
                     )

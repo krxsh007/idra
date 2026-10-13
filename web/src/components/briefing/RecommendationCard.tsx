@@ -61,9 +61,12 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
       {/* Meta Bar: Confidence & Locate */}
       <div className="flex items-center justify-between text-xs text-slate-400 py-1.5 px-2 bg-slate-950/60 rounded border border-slate-800/80 mb-2">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-medium text-slate-400">Confidence:</span>
           {recommendation.confidence !== null && recommendation.confidence !== undefined ? (
-            <div className="flex items-center gap-1.5">
+            <div
+              className="flex items-center gap-1.5"
+              title="AI-written item: shows the situation assessment's confidence that this briefing is based on."
+            >
+              <span className="text-[11px] font-medium text-slate-400">Assessment confidence:</span>
               <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-emerald-500 rounded-full"
@@ -75,7 +78,12 @@ export const RecommendationCard: React.FC<RecommendationCardProps> = ({
               </span>
             </div>
           ) : (
-            <span className="text-[11px] text-slate-400">Deterministic</span>
+            <span
+              className="text-[11px] text-slate-400"
+              title="Computed by rule-based code (distances, capacities, routes), so no model confidence applies."
+            >
+              Deterministic computation (no model confidence)
+            </span>
           )}
         </div>
 
