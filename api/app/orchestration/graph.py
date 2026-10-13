@@ -14,6 +14,7 @@ from app.agents.facilities import FacilityRecommendationAgent
 from app.agents.rescue_planning import RescuePlanningAgent
 from app.agents.resources import ResourceAllocationAgent
 from app.agents.routing import RoutingAgent
+from app.core.config import settings
 from app.db.models.enums import AgentName, AgentStatus, SeverityLevel
 from app.llm.client import LLMClient
 from app.orchestration.conflicts import ConflictResolver
@@ -114,6 +115,7 @@ def create_orchestrator_graph(
             agent_name=AgentName.DISASTER_ASSESSMENT,
             db=db,
             llm=llm,
+            timeout_s=float(settings.AGENT_TIMEOUT_ASSESSMENT_S),
         )
 
         assessment_in = parse_state_into_assessment_input(state)
@@ -206,6 +208,7 @@ def create_orchestrator_graph(
             agent_name=AgentName.RESCUE_PLANNING,
             db=db,
             llm=llm,
+            timeout_s=float(settings.AGENT_TIMEOUT_PLANNING_S),
         )
 
         planning_in = RescuePlanningInput(
@@ -265,6 +268,7 @@ def create_orchestrator_graph(
             agent_name=AgentName.HOSPITAL_RECOMMENDATION,
             db=db,
             llm=llm,
+            timeout_s=float(settings.AGENT_TIMEOUT_FACILITY_S),
         )
 
         assessment_in = parse_state_into_assessment_input(state)
@@ -329,6 +333,7 @@ def create_orchestrator_graph(
             agent_name=AgentName.EVACUATION,
             db=db,
             llm=llm,
+            timeout_s=float(settings.AGENT_TIMEOUT_EVACUATION_S),
         )
 
         assessment_in = parse_state_into_assessment_input(state)
@@ -398,6 +403,7 @@ def create_orchestrator_graph(
             agent_name=AgentName.RESOURCE_COORDINATION,
             db=db,
             llm=llm,
+            timeout_s=float(settings.AGENT_TIMEOUT_RESOURCE_S),
         )
 
         assessment_in = parse_state_into_assessment_input(state)
@@ -483,6 +489,7 @@ def create_orchestrator_graph(
             agent_name=AgentName.SYNTHESIS,
             db=db,
             llm=llm,
+            timeout_s=float(settings.AGENT_TIMEOUT_SYNTHESIS_S),
         )
 
         assessment_in = parse_state_into_assessment_input(state)

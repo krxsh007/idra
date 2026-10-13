@@ -33,6 +33,10 @@ router = APIRouter(tags=["Recommendations"])
 )
 async def list_recommendations(
     event_id: uuid.UUID | None = Query(None, description="Filter by disaster event ID"),
+    run_id: uuid.UUID | None = Query(
+        None,
+        description="Filter by run ID. With only event_id, defaults to the event's latest run.",
+    ),
     verification_status: VerificationStatus | None = Query(
         None, description="Filter by verification status"
     ),
@@ -45,6 +49,18 @@ async def list_recommendations(
         .order_by(Recommendation.priority.asc())
     )
 
+    if run_id is not None:
+        stmt = stmt.where(Recommendation.run_id == run_id)
+    elif event_id is not None:
+        # Each run produces a full briefing; earlier runs' recommendations are superseded.
+        latest_run_id = (
+            select(Recommendation.run_id)
+            .where(Recommendation.event_id == event_id)
+            .order_by(Recommendation.created_at.desc())
+            .limit(1)
+            .scalar_subquery()
+        )
+        stmt = stmt.where(Recommendation.run_id == latest_run_id)
     if event_id is not None:
         stmt = stmt.where(Recommendation.event_id == event_id)
     if verification_status is not None:

@@ -200,3 +200,51 @@ async def test_list_recommendations(async_client: AsyncClient) -> None:
         assert data["items"][0]["title"] == "Open Shelters"
     finally:
         app.dependency_overrides.clear()
+
+
+async def _list_sql(async_client: AsyncClient, query: str) -> str:
+    """Call the list endpoint with a mocked DB and return the SQL it executed."""
+    responder = User(
+        id=uuid.uuid4(),
+        email="resp@test.com",
+        password_hash="...",
+        full_name="Responder User",
+        role=UserRole.RESPONDER,
+        is_active=True,
+    )
+    mock_db = AsyncMock(spec=AsyncSession)
+    mock_res = MagicMock()
+    mock_res.scalars.return_value.all.return_value = []
+    mock_db.execute.return_value = mock_res
+
+    app.dependency_overrides[get_current_user] = lambda: responder
+    app.dependency_overrides[get_db] = lambda: mock_db
+    try:
+        res = await async_client.get(
+            f"/api/v1/recommendations{query}",
+            headers={"Authorization": "Bearer fake-token"},
+        )
+        assert res.status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+
+    stmt = mock_db.execute.call_args.args[0]
+    return str(stmt.compile()).lower()
+
+
+@pytest.mark.asyncio
+async def test_list_recommendations_by_event_defaults_to_latest_run(
+    async_client: AsyncClient,
+) -> None:
+    sql = await _list_sql(async_client, f"?event_id={uuid.uuid4()}")
+    # Only the event's most recent run, not every run's briefing accumulated together.
+    assert "recommendations.run_id = (select" in sql
+    assert "order by recommendations.created_at desc" in sql
+    assert "limit" in sql
+
+
+@pytest.mark.asyncio
+async def test_list_recommendations_explicit_run_id(async_client: AsyncClient) -> None:
+    sql = await _list_sql(async_client, f"?event_id={uuid.uuid4()}&run_id={uuid.uuid4()}")
+    assert "recommendations.run_id = :run_id_1" in sql
+    assert "limit" not in sql
