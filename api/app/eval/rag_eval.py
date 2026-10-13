@@ -88,6 +88,9 @@ def run_rag_evaluation() -> dict[str, Any]:
     resolvable_citations = 0
     total_citations_checked = 0
 
+    # Untimed warm-up so one-off model/device initialisation isn't counted as query latency.
+    embedding_service.embed_text("warm-up query")
+
     for q_item in queries:
         q_text = q_item["query"]
         t0 = time.perf_counter()

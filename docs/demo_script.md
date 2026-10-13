@@ -1,56 +1,65 @@
 # IDRA Live Demonstration Script
 
-## Prerequisites
-1. Start the full stack:
+About 10 minutes end to end. Steps 1–5 are the core demo; step 6 is backup material for questions.
+
+## Before the demo
+1. Start the stack and confirm it is healthy:
    ```bash
    make up
-   make migrate
-   make seed
+   make smoke
    ```
-2. Open the tactical frontend at `http://localhost:5173` (or API docs at `http://localhost:8000/docs`).
+2. Open `http://localhost:5173` and sign in (**Sign In** → **Admin** quick-fill → **Sign In**).
+3. Trigger one run per scenario you plan to show, so each already has a briefing loaded if the LLM provider is slow on the day.
+4. Keep `http://localhost:8000/docs` open in a second tab.
+
+With `LLM_BACKEND=gemini` on the free tier, expect 20–40 s per run. If the provider returns 503/429, every
+Tier A agent falls back to its deterministic output and the run still completes; this is a feature to point out,
+not a failure. For a fully offline demo, set `LLM_BACKEND=fake`, run `make seed`, and recreate the API container.
 
 ---
 
-## Step 1 — Scenarios (seeded by `make seed`)
-1. Sign in at `http://localhost:5173` via the **Sign In** button (use the Admin quick-fill, or `admin@example.com` with the `SEED_ADMIN_PASSWORD` from `.env`).
-2. The three canonical scenarios are already seeded as ACTIVE events; pick **Scenario 1: Chennai Adyar & Kotturpuram Monsoon Flood** in the **Active Event** dropdown.
-4. Observe the newly seeded event, 2 impassable/high-severity flood polygons along Kotturpuram and Saidapet, and 8 geocoded distress reports.
+## Step 1 — The problem and the map (1 min)
+1. Pick **Scenario 1: Chennai Adyar & Kotturpuram Monsoon Flood** in the event selector.
+2. Walk through the map layers (bottom-left **Map Layers** panel): study-area bounding box, hazard polygons
+   (severe = red, high = amber), geocoded incident reports, and hospital (H) / shelter (S) facilities.
+3. Open **Event Details** to show the event metadata and reports feeding the agents.
 
----
+## Step 2 — Multi-agent run (3 min)
+1. In **Briefing & Runs**, click **Trigger Run**.
+2. Narrate the 7-stage pipeline as each card turns to **Done**:
+   - **Tier A (LLM + grounding):** 1. Disaster Assessment (RAG over NDMA/TNSDMA/Sphere SOPs), 2. Rescue Planning
+     (DBSCAN clustering of reports into rescue zones), 7. Briefing Synthesis.
+   - **Tier B (deterministic):** 3. Facility Matching (PostGIS), 4. Evacuation Routing (hazard-avoiding Dijkstra on the
+     OSM road graph), 5. Resource Ledger, 6. Conflict Resolver.
+3. Key point: the LLM only writes prose and prioritisation on top of numbers the deterministic agents computed.
+   Facility names in the LLM briefing are checked against real facilities, and outputs are screened for forbidden
+   language; on any failure the agent returns its deterministic output.
 
-## Step 2 — Command Center Map & Multi-Agent Run (`/`)
-1. Open the **Command Center** (`http://localhost:5173/`).
-2. Inspect the MapLibre GL tactical map:
-   - Red/Amber polygons mark inundated flood corridors.
-   - Hospital and shelter pins display `REAL` (OSM location) and `SIMULATED` (capacity) `ProvenanceTag` badges.
-3. Click **Run Multi-Agent Analysis** in the top bar:
-   - Watch the **Agent Trace Drawer** stream live stage completions (`DISASTER_ASSESSMENT` $\to$ `RESCUE_PLANNING` $\to$ parallel `HOSPITAL_RECOMMENDATION`, `EVACUATION`, `RESOURCE_COORDINATION` $\to$ `ConflictResolver` $\to$ `SYNTHESIS`).
-4. Click any recommendation card in the **Incident Briefing** panel:
-   - The map camera smoothly flies (`flyTo`) to the target rescue zone or shelter and highlights the Dijkstra hazard-avoiding evacuation route (`RouteStatus.DETOUR` / `OPTIMAL`).
+## Step 3 — Prioritised briefing and map focus (2 min)
+1. Scroll to **Prioritized Briefing**: recommendations ordered by priority (life safety first), each with an
+   origin badge (AI-generated vs deterministic) and provenance tag (REAL vs SIMULATED data).
+2. Click the locate action on a recommendation card: the map flies to the target zone or facility.
 
----
+## Step 4 — Human-in-the-loop verification (2 min)
+1. Every recommendation starts as **PENDING**; nothing is committed automatically.
+2. As Admin, click **Approve** on a recommendation: it becomes **VERIFIED** and is recorded in the audit log.
+3. Click **Override** or **Reject**: the gate refuses without a justification note. Enter one to complete it.
+4. Use the **ALL / PENDING / VERIFIED** filter to show the review state.
 
-## Step 3 — Human-in-the-Loop Verification Gate (`/`)
-1. Notice that every newly generated recommendation displays `OriginBadge` = `PENDING` (`AI-GENERATED • AWAITING VERIFICATION`) and resource allocations remain uncommitted (`is_committed = False`).
-2. As `ADMIN`, click **Approve & Commit** on the top evacuation/resource recommendation (`VerificationControls`):
-   - The badge transitions to `VERIFIED`, `ResourceUnit` quantities are decremented in PostgreSQL, and an immutable `AuditLog` entry is recorded.
-3. Click **Export SitRep** to download the Markdown Situation Report (`GET /api/v1/runs/{run_id}/sitrep`).
+## Step 5 — Citizen Emergency Assistant (2 min)
+1. Open **Citizen Emergency Assistant** (bottom-right).
+2. Informational query: *"What should I do during severe flood waterlogging in Chennai?"* → grounded answer
+   with citations to the SOP documents and official helplines.
+3. Urgent query: *"Water entering first floor in Saidapet, 3 elderly trapped on roof!"* → flagged
+   **LIFE_THREATENING**, escalated into an incident report for responders, with 112/1077 guidance.
+4. Out-of-scope query (e.g. *"Is it safe to drive through water on OMR?"*): when retrieval finds no guidance above
+   the score floor, the assistant makes **zero** LLM calls and returns the safe fallback instead of guessing.
 
----
-
-## Step 4 — Citizen Assistance & Urgent Escalation (chat drawer)
-1. Click **Citizen Emergency Assistant** (bottom-right of the dashboard).
-2. Switch language between **English (`en`)**, **Tamil (`ta`)**, and **Hindi (`hi`)**.
-3. Submit an informational query: *"What is the safe drinking water requirement and how do I purify flood water?"*
-   - Observe the grounded answer citing Sphere/NDMA guidelines alongside nearest operational relief shelters outside hazard zones.
-4. Submit an urgent distress message: *"Water entering first floor in Saidapet, 3 elderly trapped on roof!"*
-   - Observe the red **URGENT ESCALATION** banner (`urgent_escalation = True`), automatic high-priority `IncidentReport` creation, and emergency helplines (`1070`, `1913`, `108`, `112`).
-
----
-
-## Step 5 — Evaluation Harness Verification (`/api/v1/metrics/eval`)
-1. Run the deterministic evaluation suite from the terminal:
-   ```bash
-   make eval
-   ```
-2. Query `GET http://localhost:8000/api/v1/metrics/eval` (or view `docs/evaluation.md`) to inspect all 34 automated metrics across `rag_eval`, `agent_eval`, `gis_eval`, and `system_eval`.
+## Step 6 — Evidence for questions
+- **Tests:** `make test` (unit, integration, and end-to-end fault-injection suites).
+- **Evaluation:** `make eval` regenerates [`evaluation.md`](evaluation.md) — 34 automated metrics across RAG
+  quality, agent behaviour, GIS routing, and system faults. Agent and fault metrics use a scripted LLM so they are
+  reproducible; RAG metrics use the configured embedding model.
+- **API:** `http://localhost:8000/docs` for the REST/SSE endpoints.
+- **Reliability story:** pull the Gemini key (or wait for a 503) and show that runs still complete with
+  deterministic fallbacks.
