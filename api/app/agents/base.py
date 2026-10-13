@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Generic, TypeVar
 
 import structlog
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.enums import AgentName, AgentStatus
@@ -25,6 +25,13 @@ class AgentFailure(BaseModel):
     code: str = Field(..., description="Machine-readable error code")
     message: str = Field(..., description="Human-readable error description")
     details: dict[str, Any] = Field(default_factory=dict)
+
+
+def is_llm_output_error(err: BaseException) -> bool:
+    """True for malformed/invalid model output (repairable), False for provider failures."""
+    if isinstance(err, ValidationError):
+        return True
+    return isinstance(err, ValueError) and "LLM_UNAVAILABLE" not in str(err)
 
 
 class RunContext(BaseModel):
@@ -116,11 +123,9 @@ class BaseAgent(ABC, Generic[InputT, OutputT]):
                 temperature=temperature,
             )
         except Exception as first_err:
-            if (
-                ctx.max_repair_retries < 1
-                or "LLM_UNAVAILABLE" in str(first_err)
-                or isinstance(first_err, ConnectionError)
-            ):
+            # A repair prompt only helps when the model answered with malformed output;
+            # provider errors (overload, rate limit, network) are not worth a second call.
+            if ctx.max_repair_retries < 1 or not is_llm_output_error(first_err):
                 raise
 
             repair_prompt = (

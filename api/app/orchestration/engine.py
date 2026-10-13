@@ -109,9 +109,14 @@ class OrchestrationEngine:
 
     def __init__(self) -> None:
         self._run_events: dict[str, list[dict[str, Any]]] = {}
+        # Outputs of agents that have finished in a run still in progress (persisted at the end).
+        self._live_outputs: dict[str, list[dict[str, Any]]] = {}
 
     def get_run_events(self, run_id: str) -> list[dict[str, Any]]:
         return list(self._run_events.get(run_id, []))
+
+    def get_live_outputs(self, run_id: str) -> list[dict[str, Any]]:
+        return list(self._live_outputs.get(run_id, []))
 
     async def run_pipeline(
         self,
@@ -170,6 +175,7 @@ class OrchestrationEngine:
         self._run_events[run_id_str] = [
             {"event": "run_started", "run_id": run_id_str, "status": "RUNNING"}
         ]
+        self._live_outputs[run_id_str] = []
 
         ep_shape = to_shape(event.epicenter)
         weather_ctx = await fetch_weather_context(ep_shape.x, ep_shape.y)
@@ -192,9 +198,34 @@ class OrchestrationEngine:
 
         # 4. Execute StateGraph with total timeout
         final_state: dict[str, Any] = {}
+
+        async def execute_with_progress() -> dict[str, Any]:
+            # Stream the state after every node so each agent's result is visible while the
+            # rest of the pipeline is still running.
+            state: dict[str, Any] = {}
+            async for state in compiled_graph.astream(initial_state, stream_mode="values"):
+                live = self._live_outputs[run_id_str]
+                for rec in state.get("outputs", [])[len(live) :]:
+                    live.append(rec)
+                    self._run_events[run_id_str].append(
+                        {
+                            "event": "agent_completed",
+                            "run_id": run_id_str,
+                            "agent": rec["agent"],
+                            "status": (
+                                rec["status"].value
+                                if hasattr(rec["status"], "value")
+                                else str(rec["status"])
+                            ),
+                            "latency_ms": rec.get("latency_ms"),
+                            "error_code": rec.get("error_code"),
+                        }
+                    )
+            return state
+
         try:
             final_state = await asyncio.wait_for(
-                compiled_graph.ainvoke(initial_state),
+                execute_with_progress(),
                 timeout=float(settings.RUN_TOTAL_TIMEOUT_S),
             )
         except TimeoutError:
@@ -247,20 +278,6 @@ class OrchestrationEngine:
                 error_message=rec.get("error_message"),
             )
             db.add(agent_output)
-            self._run_events[run_id_str].append(
-                {
-                    "event": "agent_completed",
-                    "run_id": run_id_str,
-                    "agent": rec["agent"],
-                    "status": (
-                        rec["status"].value
-                        if hasattr(rec["status"], "value")
-                        else str(rec["status"])
-                    ),
-                    "latency_ms": rec.get("latency_ms"),
-                    "error_code": rec.get("error_code"),
-                }
-            )
 
         # 6. Persist Prioritized Recommendations & Citations from Synthesis
         synth_out = final_state.get("synthesis_output")
@@ -391,7 +408,7 @@ class OrchestrationEngine:
                         hazard_avoided=route_item.get("hazard_avoided", True),
                         traverses_hazard=route_item.get("traverses_hazard", False),
                         blocked_edge_count=route_item.get("blocked_edges_avoided", 0),
-                        algorithm=route_item.get("algorithm", "dijkstra_hazard_penalty"),
+                        algorithm=route_item.get("algorithm", "astar_hazard_penalty"),
                     )
                     db.add(route_db)
 
@@ -421,6 +438,7 @@ class OrchestrationEngine:
 
         await db.commit()
         await db.refresh(agent_run)
+        self._live_outputs.pop(run_id_str, None)
         self._run_events[run_id_str].append(
             {
                 "event": "run_completed",

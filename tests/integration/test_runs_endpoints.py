@@ -65,3 +65,41 @@ async def test_get_run_detail_not_found(async_client: AsyncClient) -> None:
         assert "not found" in res.json()["detail"].lower()
     finally:
         app.dependency_overrides.clear()
+
+
+def test_in_progress_run_includes_agents_that_already_finished() -> None:
+    """Outputs are persisted at the end of a run; the API surfaces finished agents meanwhile."""
+    from datetime import UTC, datetime
+
+    from app.db.models.enums import AgentName, AgentStatus, RunStatus
+    from app.db.models.runs import AgentRun
+    from app.orchestration.engine import orchestration_engine
+    from app.routers.runs import _with_live_outputs
+
+    run = AgentRun(
+        id=uuid.uuid4(),
+        event_id=uuid.uuid4(),
+        status=RunStatus.RUNNING,
+        needs_human_review=False,
+        started_at=datetime.now(UTC),
+        outputs=[],
+    )
+    orchestration_engine._live_outputs[str(run.id)] = [
+        {
+            "agent": AgentName.DISASTER_ASSESSMENT.value,
+            "status": AgentStatus.SUCCESS,
+            "payload": {"severity": "SEVERE"},
+            "latency_ms": 1200,
+        }
+    ]
+    try:
+        detail = _with_live_outputs(run)
+    finally:
+        orchestration_engine._live_outputs.pop(str(run.id), None)
+
+    assert [o.agent for o in detail.outputs] == [AgentName.DISASTER_ASSESSMENT]
+    assert detail.outputs[0].payload == {"severity": "SEVERE"}
+
+    # Once the run has finished, only persisted outputs are returned.
+    run.status = RunStatus.COMPLETED
+    assert _with_live_outputs(run).outputs == []

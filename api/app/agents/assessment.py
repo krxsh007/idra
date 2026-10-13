@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
 import structlog
 
-from app.agents.base import AgentFailure, BaseAgent, RunContext
+from app.agents.base import AgentFailure, BaseAgent, RunContext, is_llm_output_error
 from app.core.config import settings
 from app.db.models.enums import AgentName, AgentStatus, SeverityLevel
 from app.llm.guards import check_forbidden_language, fence_untrusted_input
@@ -146,20 +147,30 @@ class DisasterAssessmentAgent(BaseAgent[AssessmentInput, AssessmentOutput]):
 
         # 5. Call LLM with automatic repair retry
         try:
-            output = await self.call_llm_with_repair(
-                ctx=ctx,
-                prompt=prompt,
-                system_instruction="You are an AI disaster response assessment expert.",
-                temperature=0.1,
+            # Bounded below the agent timeout so a slow provider is reported as unavailable
+            # (the pipeline continues on a degraded baseline) rather than killing the run.
+            output = await asyncio.wait_for(
+                self.call_llm_with_repair(
+                    ctx=ctx,
+                    prompt=prompt,
+                    system_instruction="You are an AI disaster response assessment expert.",
+                    temperature=0.1,
+                ),
+                timeout=ctx.llm_budget_s,
             )
         except Exception as e:
             # Offline/dev mode has no real LLM: derive a conservative assessment from the evidence.
-            if settings.LLM_BACKEND != "fake" or "no fixture response" not in str(e):
+            if settings.LLM_BACKEND == "fake" and "no fixture response" in str(e):
+                log.warning("llm_assessment_fallback", error=str(e))
+                output = self._deterministic_assessment(
+                    input_data, chunks, sum_reported_affected, any_casualties_in_reports
+                )
+            elif is_llm_output_error(e):
                 raise
-            log.warning("llm_assessment_fallback", error=str(e))
-            output = self._deterministic_assessment(
-                input_data, chunks, sum_reported_affected, any_casualties_in_reports
-            )
+            else:
+                # Provider overloaded, rate-limited, unreachable or too slow.
+                log.warning("llm_provider_unavailable", error=f"{type(e).__name__}: {e}")
+                raise ConnectionError(f"LLM_UNAVAILABLE: {type(e).__name__}: {e}") from e
 
         # 6. Post-processing Invariants & Guardrails
         # A. Forbidden language check

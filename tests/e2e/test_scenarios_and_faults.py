@@ -4,6 +4,7 @@ import asyncio
 import json
 import subprocess
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -731,12 +732,12 @@ async def test_fault_row9_whole_run_budget_timeout_marks_partial() -> None:
     event, reports, hazards = _build_scenario_orm_objects(sc)
     mock_db, _ = _make_mock_db_for_scenario(event, reports, hazards, [])
 
-    async def slow_graph_invoke(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    async def slow_graph_stream(*args: Any, **kwargs: Any) -> AsyncIterator[dict[str, Any]]:
         await asyncio.sleep(0.5)
-        return {}
+        yield {}
 
     mock_compiled = MagicMock()
-    mock_compiled.ainvoke = AsyncMock(side_effect=slow_graph_invoke)
+    mock_compiled.astream = slow_graph_stream
 
     with (
         patch.object(settings, "RUN_TOTAL_TIMEOUT_S", 0.02),
