@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { X, FilePlus2, AlertCircle, MapPin, AlertTriangle } from 'lucide-react';
 import { api } from '../../lib/api';
-import { EpicenterPoint, ReportSource } from '../../types/api';
+import { EpicenterPoint, IncidentReport, ReportSource } from '../../types/api';
 import { useAuthStore } from '../../stores/authStore';
 
 interface ReportSubmissionModalProps {
   isOpen: boolean;
   eventId?: string | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (report: IncidentReport) => void;
   onStartLocationPick: (onPick: (coords: EpicenterPoint) => void) => void;
 }
 
@@ -49,7 +49,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
     setError(null);
 
     try {
-      await api.submitReport({
+      const created = await api.submitReport({
         event_id: eventId || undefined,
         source,
         reporter_name: reporterName || undefined,
@@ -61,7 +61,7 @@ export const ReportSubmissionModal: React.FC<ReportSubmissionModalProps> = ({
       });
 
       setLoading(false);
-      onSuccess();
+      onSuccess(created);
       onClose();
     } catch (err: unknown) {
       setLoading(false);
