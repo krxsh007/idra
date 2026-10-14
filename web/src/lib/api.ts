@@ -103,7 +103,8 @@ class ApiClient {
   }
 
   async getEventReports(eventId: string): Promise<ReportListResponse> {
-    return this.request<ReportListResponse>(`/events/${eventId}/reports`);
+    // The map needs every report for the event, not the API default page of 20.
+    return this.request<ReportListResponse>(`/events/${eventId}/reports?limit=100`);
   }
 
   // Hazard Zones

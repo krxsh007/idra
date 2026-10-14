@@ -15,7 +15,7 @@ import { ReportSubmissionModal } from './components/reports/ReportSubmissionModa
 import { useAuthStore } from './stores/authStore';
 import { useEventStore } from './stores/eventStore';
 import { api } from './lib/api';
-import { EpicenterPoint, EvacuationRoute } from './types/api';
+import { EpicenterPoint, EvacuationRoute, IncidentReport } from './types/api';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,7 +27,7 @@ const queryClient = new QueryClient({
 });
 
 const Dashboard: React.FC = () => {
-  const { checkAuth } = useAuthStore();
+  const { checkAuth, isAuthenticated } = useAuthStore();
   const { selectedEvent, setActiveEvent } = useEventStore();
 
   // Modals state
@@ -35,6 +35,10 @@ const Dashboard: React.FC = () => {
   const [isNewEventOpen, setIsNewEventOpen] = useState(false);
   const [isNewHazardOpen, setIsNewHazardOpen] = useState(false);
   const [isSubmitReportOpen, setIsSubmitReportOpen] = useState(false);
+
+  // Reports submitted from this browser. Shown on the map right away, even when logged out:
+  // listing an event's reports (with reporter details) is restricted to responders/admins.
+  const [submittedReports, setSubmittedReports] = useState<IncidentReport[]>([]);
 
   // Map location picker state
   const [isPickingLocation, setIsPickingLocation] = useState(false);
@@ -97,6 +101,17 @@ const Dashboard: React.FC = () => {
     return [];
   }, [runsData]);
 
+  const mapReports = useMemo(() => {
+    const listed = reportsData?.items ?? [];
+    const listedIds = new Set(listed.map((r) => r.id));
+    // With an event selected, only its own reports belong on the map; logged out (no event
+    // list), show everything submitted from this browser.
+    const own = submittedReports.filter(
+      (r) => !listedIds.has(r.id) && (!selectedEvent || r.event_id === selectedEvent.id)
+    );
+    return [...own, ...listed];
+  }, [reportsData, submittedReports, selectedEvent]);
+
   const handleStartLocationPick = (callback: (coords: EpicenterPoint) => void) => {
     setOnPickCallback(() => callback);
     setIsPickingLocation(true);
@@ -144,7 +159,7 @@ const Dashboard: React.FC = () => {
           <MapContainer
             activeEvent={selectedEvent}
             hazardZones={hazardZonesData?.items || []}
-            reports={reportsData?.items || []}
+            reports={mapReports}
             facilities={facilitiesData?.items || []}
             routes={evacuationRoutes}
             onMapClick={handleMapClick}
@@ -233,8 +248,9 @@ const Dashboard: React.FC = () => {
           isOpen={isSubmitReportOpen}
           eventId={selectedEvent?.id}
           onClose={() => setIsSubmitReportOpen(false)}
-          onSuccess={() => {
-            refetchReports();
+          onSuccess={(report) => {
+            setSubmittedReports((prev) => [report, ...prev]);
+            if (isAuthenticated) refetchReports();
             refetchEvents();
           }}
           onStartLocationPick={handleStartLocationPick}
