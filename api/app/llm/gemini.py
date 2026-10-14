@@ -30,6 +30,7 @@ class GeminiLLMClient(LLMClient):
         fallback_model_name: str | None = None,
         max_retries: int | None = None,
         retry_backoff_s: float = 1.0,
+        attempt_timeout_s: float | None = None,
     ) -> None:
         self.api_key = api_key or settings.GEMINI_API_KEY
         self.model_name = model_name or settings.GEMINI_MODEL
@@ -41,24 +42,34 @@ class GeminiLLMClient(LLMClient):
         self.timeout_s = timeout_s or settings.LLM_TIMEOUT_S
         self.max_retries = settings.LLM_MAX_RETRIES if max_retries is None else max_retries
         self.retry_backoff_s = retry_backoff_s
+        self.attempt_timeout_s = attempt_timeout_s or settings.LLM_ATTEMPT_TIMEOUT_S
         self._client = genai.Client(api_key=self.api_key)
 
-    async def _generate(self, call: Callable[[str], Awaitable[R]]) -> R:
-        """Run `call(model)` within the timeout, retrying transient provider errors.
+    @property
+    def model_chain(self) -> list[str]:
+        """Primary model followed by the comma-separated fallback models, in order."""
+        fallbacks = [m.strip() for m in (self.fallback_model_name or "").split(",") if m.strip()]
+        return [self.model_name, *[m for m in fallbacks if m != self.model_name]]
 
-        Retries switch to the fallback model (when configured), which typically
-        sits on a separate capacity pool from the primary.
+    async def _generate(self, call: Callable[[str], Awaitable[R]]) -> R:
+        """Run `call(model)` within the timeout, moving down the model chain on provider errors.
+
+        Free-tier models are overloaded (503) or out of daily quota (429) independently of each
+        other, and both errors come back within a second or two, so trying the next model is far
+        more useful than waiting. Each attempt is also capped so a hung request moves on instead
+        of consuming the whole budget.
         """
+        chain = self.model_chain
+        attempts = max(self.max_retries + 1, len(chain))
 
         async def _attempts() -> R:
-            for attempt in range(self.max_retries + 1):
-                model = self.model_name
-                if attempt > 0 and self.fallback_model_name:
-                    model = self.fallback_model_name
+            for attempt in range(attempts):
+                model = chain[min(attempt, len(chain) - 1)]
+                is_last = attempt == attempts - 1
                 try:
-                    return await call(model)
+                    return await asyncio.wait_for(call(model), timeout=self.attempt_timeout_s)
                 except errors.APIError as e:
-                    if e.code not in TRANSIENT_STATUS_CODES or attempt >= self.max_retries:
+                    if e.code not in TRANSIENT_STATUS_CODES or is_last:
                         raise
                     logger.warning(
                         "gemini_transient_error_retrying",
@@ -66,6 +77,18 @@ class GeminiLLMClient(LLMClient):
                         status=e.code,
                         attempt=attempt + 1,
                     )
+                except TimeoutError:
+                    if is_last:
+                        raise
+                    logger.warning(
+                        "gemini_attempt_timed_out_retrying",
+                        model=model,
+                        timeout_s=self.attempt_timeout_s,
+                        attempt=attempt + 1,
+                    )
+                # Back off only when retrying the same model; a different model is a fresh pool.
+                next_model = chain[min(attempt + 1, len(chain) - 1)]
+                if next_model == model:
                     await asyncio.sleep(self.retry_backoff_s * (attempt + 1))
             raise AssertionError("unreachable")
 
