@@ -133,3 +133,43 @@ async def test_gemini_gives_up_after_max_retries():
     with pytest.raises(errors.APIError):
         await client.structured("p", SampleSchema)
     assert len(calls) == 3
+
+
+@pytest.mark.asyncio
+async def test_gemini_walks_the_fallback_chain_until_a_model_answers():
+    client, calls = _gemini_with_stub(
+        [_api_error(503), _api_error(429), '{"summary": "ok", "count": 1}'],
+        fallback_model_name="fallback-a, fallback-b, fallback-c",
+        max_retries=1,
+    )
+    result = await client.structured("p", SampleSchema)
+    assert result.summary == "ok"
+    assert calls == ["primary-model", "fallback-a", "fallback-b"]
+
+
+@pytest.mark.asyncio
+async def test_gemini_moves_on_when_an_attempt_hangs():
+    import time
+
+    from app.llm.gemini import GeminiLLMClient
+
+    client = GeminiLLMClient(
+        api_key="test-key",
+        model_name="primary-model",
+        fallback_model_name="fallback-a",
+        max_retries=1,
+        retry_backoff_s=0,
+        attempt_timeout_s=0.2,
+    )
+    calls: list[str] = []
+
+    def fake_generate_content(*, model, contents, config):
+        calls.append(model)
+        if model == "primary-model":
+            time.sleep(1)  # hung request
+        return _StubResponse('{"summary": "ok", "count": 1}')
+
+    client._client.models.generate_content = fake_generate_content
+    result = await client.structured("p", SampleSchema)
+    assert result.summary == "ok"
+    assert calls == ["primary-model", "fallback-a"]

@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "llama3.1:8b"
     LLM_TIMEOUT_S: int = 25
     LLM_MAX_RETRIES: int = 1
+    LLM_ATTEMPT_TIMEOUT_S: float = 12.0
     LLM_TEMPERATURE_REASONING: float = 0.2
     LLM_TEMPERATURE_PROSE: float = 0.4
 
