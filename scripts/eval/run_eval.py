@@ -6,7 +6,7 @@ from typing import Any
 
 from app.eval.harness import REPO_ROOT, evaluation_harness
 
-from scripts.seed_eval_set import seed_all_eval_datasets
+from scripts.eval.seed_eval_set import seed_all_eval_datasets
 
 DOCS_EVAL_PATH = os.path.join(REPO_ROOT, "docs", "evaluation.md")
 
@@ -65,7 +65,7 @@ def generate_evaluation_markdown(results: dict[str, Any], out_path: str = DOCS_E
     lines = [
         "# IDRA Testing & Evaluation Report (Artifact 13)",
         "",
-        "> **Generated automatically by `scripts/run_eval.py` from measured harness output "
+        "> **Generated automatically by `scripts/eval/run_eval.py` from measured harness output "
         "(`artifacts/eval_results.json`).**",
         f"> - **Timestamp (UTC):** `{results['generated_at']}`",
         f"> - **LLM Backend:** `{results['llm_backend']}`",

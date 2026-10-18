@@ -1,4 +1,4 @@
-from scripts.seed_users import DEFAULT_USERS, hash_password, verify_password
+from scripts.seed.seed_users import DEFAULT_USERS, hash_password, verify_password
 
 
 def test_password_hashing() -> None:

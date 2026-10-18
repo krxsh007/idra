@@ -41,7 +41,7 @@ def haversine_m(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 # Committed, gzipped Overpass extract (© OpenStreetMap contributors, ODbL) so builds work offline.
 OSM_CACHE_PATH = os.path.join(
-    os.path.dirname(__file__), "../data/osm/chennai_roads_overpass.json.gz"
+    os.path.dirname(__file__), "../../data/osm/chennai_roads_overpass.json.gz"
 )
 
 # Drivable OSM road classes; footpaths, service roads and tracks are excluded.
@@ -66,7 +66,8 @@ def fetch_overpass_roads(cache_path: str = OSM_CACHE_PATH) -> dict[str, Any]:
     """Download drivable OSM ways inside BBOX (cached on disk after the first download)."""
     if os.path.exists(cache_path):
         with gzip.open(cache_path, "rt", encoding="utf-8") as f:
-            return json.load(f)
+            cached: dict[str, Any] = json.load(f)
+            return cached
 
     classes = "|".join(f"{c}|{c}_link" for c in HIGHWAY_SPEED_KPH)
     min_lon, min_lat, max_lon, max_lat = BBOX
@@ -82,7 +83,7 @@ def fetch_overpass_roads(cache_path: str = OSM_CACHE_PATH) -> dict[str, Any]:
         headers={"User-Agent": "IDRA-research-prototype/1.0"},
     )
     resp.raise_for_status()
-    data = resp.json()
+    data: dict[str, Any] = resp.json()
     os.makedirs(os.path.dirname(cache_path), exist_ok=True)
     with gzip.open(cache_path, "wt", encoding="utf-8") as f:
         json.dump(data, f)
@@ -124,8 +125,8 @@ def build_graph_from_osm(osm: dict[str, Any]) -> nx.DiGraph:
             adjacency.setdefault(a, set()).add(b)
             adjacency.setdefault(b, set()).add(a)
             key = (min(a, b), max(a, b))
-            prev = segments.get(key)
-            if prev is None or HIGHWAY_RANK[highway] < HIGHWAY_RANK[prev["highway"]]:
+            existing = segments.get(key)
+            if existing is None or HIGHWAY_RANK[highway] < HIGHWAY_RANK[existing["highway"]]:
                 segments[key] = {"highway": highway, "name": name, "way_id": way["id"]}
 
     # Largest connected component (undirected) so routing never strands on an island
@@ -231,7 +232,7 @@ async def persist_to_database(db: AsyncSession, G: nx.DiGraph) -> None:
 
 def save_artifacts(G: nx.DiGraph) -> None:
     """Save road_graph.pkl and road_graph_manifest.json to artifacts/."""
-    artifacts_dir = os.path.join(os.path.dirname(__file__), "../artifacts")
+    artifacts_dir = os.path.join(os.path.dirname(__file__), "../../artifacts")
     os.makedirs(artifacts_dir, exist_ok=True)
 
     pkl_path = os.path.join(artifacts_dir, "road_graph.pkl")

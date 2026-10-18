@@ -63,7 +63,7 @@ from httpx import AsyncClient
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from scripts.seed_scenarios import get_scenario_definitions
+from scripts.seed.seed_scenarios import get_scenario_definitions
 
 
 def _build_scenario_orm_objects(

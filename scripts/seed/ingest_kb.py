@@ -114,7 +114,7 @@ async def main() -> None:
     engine = create_async_engine(settings.DATABASE_URL, echo=False)
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
 
-    data_dir = os.path.join(os.path.dirname(__file__), "../data/kb/raw")
+    data_dir = os.path.join(os.path.dirname(__file__), "../../data/kb/raw")
     if not os.path.exists(data_dir):
         logger.error("data_directory_missing", path=data_dir)
         return

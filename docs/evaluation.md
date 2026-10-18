@@ -1,6 +1,6 @@
 # IDRA Testing & Evaluation Report (Artifact 13)
 
-> **Generated automatically by `scripts/run_eval.py` from measured harness output (`artifacts/eval_results.json`).**
+> **Generated automatically by `scripts/eval/run_eval.py` from measured harness output (`artifacts/eval_results.json`).**
 > - **Timestamp (UTC):** `2026-10-13T13:51:09.495939+00:00`
 > - **LLM Backend:** `gemini`
 > - **Automated Metrics Passed:** `34 / 34` (`100.0%`)

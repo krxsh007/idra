@@ -100,7 +100,7 @@ class RoadGraphManager:
 
         # No pickle (fresh clone): build from the committed OSM extract and cache it.
         logger.info("building_road_graph_from_osm_extract")
-        from scripts.load_road_network import build_road_graph, save_artifacts
+        from scripts.seed.load_road_network import build_road_graph, save_artifacts
 
         self._graph = build_road_graph()
         save_artifacts(self._graph)

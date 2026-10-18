@@ -8,7 +8,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from geoalchemy2.elements import WKTElement
-from scripts.seed_scenarios import get_scenario_definitions
+from scripts.seed.seed_scenarios import get_scenario_definitions
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.enums import (
