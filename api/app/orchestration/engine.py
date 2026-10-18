@@ -7,13 +7,6 @@ from typing import Any
 
 import httpx
 import structlog
-from geoalchemy2.functions import ST_GeomFromText, ST_MakePoint, ST_SetSRID
-from geoalchemy2.shape import to_shape
-from shapely.geometry import mapping
-from sqlalchemy import select
-from sqlalchemy.exc import OperationalError, SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.core.config import settings
 from app.core.errors import AppException, ErrorCode
 from app.db.models.enums import AgentName, AgentStatus, RunStatus, VerificationStatus
@@ -29,6 +22,12 @@ from app.db.models.runs import (
 from app.llm.client import LLMClient
 from app.orchestration.graph import create_orchestrator_graph
 from app.orchestration.state import OrchestratorState
+from geoalchemy2.functions import ST_GeomFromText, ST_MakePoint, ST_SetSRID
+from geoalchemy2.shape import to_shape
+from shapely.geometry import mapping
+from sqlalchemy import select
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
 

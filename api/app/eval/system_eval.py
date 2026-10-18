@@ -8,7 +8,6 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from geoalchemy2.elements import WKTElement
-from scripts.seed.seed_scenarios import get_scenario_definitions
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.enums import (
@@ -33,6 +32,7 @@ from app.llm.fake import FakeLLMClient
 from app.orchestration.engine import orchestration_engine
 from app.rag.retriever import RetrievedChunk
 from app.schemas.agents.assessment import AssessmentOutput, Citation, CitationSourceType
+from scripts.seed.seed_scenarios import get_scenario_definitions
 
 
 def _build_eval_scenario_objects(

@@ -5,7 +5,6 @@ import uuid
 from typing import Any
 
 import structlog
-
 from app.gis.routing import HazardAwareRouter
 from app.orchestration.state import OrchestratorState
 

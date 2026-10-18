@@ -6,7 +6,6 @@ import re
 from pathlib import Path
 
 import structlog
-
 from app.agents.base import AgentFailure, BaseAgent, RunContext
 from app.db.models.enums import AgentName
 from app.llm.guards import check_forbidden_language
