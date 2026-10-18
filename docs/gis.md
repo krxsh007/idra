@@ -3,7 +3,7 @@
 ## 1. Study Area & Road Network Artifact
 - **Study Area Bounding Box (`STUDY_AREA_BBOX`):** `[80.15, 12.95, 80.30, 13.15]` (Chennai Metropolitan Area, WGS84 `EPSG:4326`).
 - **Road Graph (`artifacts/road_graph.pkl` + `artifacts/road_graph_manifest.json`):**
-  - Built by `scripts/load_road_network.py` from **OpenStreetMap** drivable roads (motorway → living_street, plus `_link` ramps; footpaths, service roads and tracks excluded) inside the bbox, fetched once from the Overpass API and committed gzipped at `data/osm/chennai_roads_overpass.json.gz` (© OpenStreetMap contributors, ODbL). A fresh clone builds the pickle from this extract automatically.
+  - Built by `scripts/seed/load_road_network.py` from **OpenStreetMap** drivable roads (motorway → living_street, plus `_link` ramps; footpaths, service roads and tracks excluded) inside the bbox, fetched once from the Overpass API and committed gzipped at `data/osm/chennai_roads_overpass.json.gz` (© OpenStreetMap contributors, ODbL). A fresh clone builds the pickle from this extract automatically.
   - Raw OSM nodes are collapsed so graph nodes are junctions and dead ends only (`62,243` nodes, `164,910` directed edges); each edge keeps the full street `geometry`, so routes follow real road shapes. Only the largest connected component is kept, so the graph is strongly connected.
   - Each edge stores `length`/`length_m`, `speed_kph` (by road class), `travel_s`, `highway_class`, `name`, `osm_way_id` and `geometry`. Two-way travel is assumed (emergency vehicles and evacuees on foot).
   - Loaded once into process memory by `RoadGraphManager` (`api/app/gis/graph.py`), frozen out of the cyclic GC, and treated as read-only. The same edges are written to `road_nodes`/`road_edges` in PostGIS.
